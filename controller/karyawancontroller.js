@@ -3,118 +3,91 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-
-const counterRef = db.collection('counters').doc('karyawan_id');
-
-const getNextKaryawanId = async () => {
-  let karyawanId;
-
-  await db.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    if (!counterDoc.exists) {
-      transaction.set(counterRef, { count: 1001 });
-      karyawanId = 1001;
-    } else {
-      const newCount = counterDoc.data().count + 1;
-      transaction.update(counterRef, { count: newCount });
-      karyawanId = newCount;
-    }
-  });
-
-  return karyawanId;
-};
+const { v4: uuidv4 } = require('uuid');
 
 const createKaryawan = async (req, res) => {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+        return res.status(400).json({ message: 'No file uploaded' });
     }
-  
+
     try {
-      const karyawanId = await getNextKaryawanId();
-      const karyawanRef = db.collection('karyawan').doc();
-  
-      // Upload image to Firebase Storage
-      const imageFileName = `profilepicture${req.body.fullname}_${Date.now()}`;
-      const file = bucket.file(imageFileName);
-      const stream = file.createWriteStream({
-        metadata: {
-          contentType: req.file.mimetype
-        }
-      });
-  
-      stream.on('error', (error) => {
-        console.error('Error uploading image to Firebase:', error);
-        return res.status(500).json({ message: 'Error uploading image to Firebase' });
-      });
-  
-      stream.on('finish', async () => {
-        const profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${imageFileName}`;
-  
-        const hashedPassword = await bcrypt.hash(req.body.password, 10);
-  
-        const karyawanData = {
-          karyawan_id: karyawanId,
-          fullname: req.body.fullname,
-          username: req.body.username,
-          email: req.body.email,
-          password: hashedPassword,
-          profile_photo_url: profilePhotoUrl,
-          NIP: req.body.NIP,
-          resetpasswordtoken: '',
-          phoneNumber: req.body.phoneNumber,
-          address: req.body.address,
-          division: req.body.division,
-          shift: req.body.shift, // should be 'pagi' or 'siang'
-          tanggal_lahir: req.body.tanggal_lahir,
-          startWorkTime: req.body.startWorkTime, // Assuming these fields are provided in the request body
-          breakTime: req.body.breakTime,
-          endWorkTime: req.body.endWorkTime
-        };
-  
-        await karyawanRef.set(karyawanData);
-  
-        res.status(201).json(karyawanData);
-      });
-  
-      stream.end(req.file.buffer);
+        const karyawanId = uuidv4(); // Generate UUID for karyawanId
+
+        // Set the document path
+        const karyawanRef = db.collection('karyawan').doc(karyawanId); // Set document path using karyawanId
+
+        // Upload image to Firebase Storage
+        const imageFileName = `profilepicture_${karyawanId}_${Date.now()}`;
+        const file = bucket.file(imageFileName);
+        const stream = file.createWriteStream({
+            metadata: {
+                contentType: req.file.mimetype
+            }
+        });
+
+        stream.on('error', (error) => {
+            console.error('Error uploading image to Firebase:', error);
+            return res.status(500).json({ message: 'Error uploading image to Firebase' });
+        });
+
+        stream.on('finish', async () => {
+            const profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${imageFileName}`;
+
+            const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+            const karyawanData = {
+                karyawan_id: karyawanId,
+                fullname: req.body.fullname,
+                username: req.body.username,
+                email: req.body.email,
+                password: hashedPassword,
+                profile_photo_url: profilePhotoUrl,
+                NIP: req.body.NIP,
+                resetpasswordtoken: '',
+                phoneNumber: req.body.phoneNumber,
+                address: req.body.address,
+                division: req.body.division,
+                shift: req.body.shift, // should be 'pagi' or 'siang'
+                tanggal_lahir: req.body.tanggal_lahir,
+                isAdmin: false // Add isAdmin field with default value false
+            };
+
+            await karyawanRef.set(karyawanData);
+
+            res.status(201).json(karyawanData);
+        });
+
+        stream.end(req.file.buffer);
     } catch (error) {
-      res.status(500).json({ message: 'Error creating karyawan', error: error.message });
+        res.status(500).json({ message: 'Error creating karyawan', error: error.message });
     }
-  };
+};
+
   
 
-const login = async (req, res) => {
+  
+
+  const login = async (req, res) => {
     try {
       const { username, password } = req.body;
   
-      // Query Firestore to find the karyawan by username
       const snapshot = await db.collection('karyawan').where('username', '==', username).get();
-  
       if (snapshot.empty) {
         return res.status(401).json({ error: 'Invalid username or password' });
       }
   
-      let karyawan;
+      let user;
       snapshot.forEach(doc => {
-        karyawan = doc.data(); // Get karyawan data
-        karyawan.id = doc.id; // Store karyawan document ID
+        user = doc.data();
       });
   
-      // Verify password
-      const isPasswordValid = await bcrypt.compare(password, karyawan.password);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         return res.status(401).json({ error: 'Invalid username or password' });
       }
   
-      // Generate JWT token with payload including karyawanId
-      const tokenPayload = {
-        karyawanId: karyawan.karyawan_id, // Assuming the karyawanId field in Firestore is karyawan_id
-        username: karyawan.username // Optionally include other data in the payload
-      };
+      const token = jwt.sign({ karyawanId: user.karyawan_id, username: user.username }, 'iwishiwasyourjoke', { expiresIn: '1h' });
   
-      const token = jwt.sign(tokenPayload, 'iwishiwasyourjoke', { expiresIn: '1h' });
-  
-      // Set JWT token as a cookie and send it in the response
       res.cookie('token', token, { maxAge: 3600000, httpOnly: true });
       res.json({ token });
     } catch (error) {
@@ -122,6 +95,7 @@ const login = async (req, res) => {
       res.status(500).json({ error: 'Server error' });
     }
   };
+  
 
 const requestPasswordReset = async (req, res) => {
   try {

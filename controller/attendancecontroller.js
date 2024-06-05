@@ -1,94 +1,97 @@
 const { db } = require('../firebase');
 const moment = require('moment');
 
-// Function to check in or out
 const checkIn = async (req, res) => {
     try {
-      const { type } = req.body; // type can be 'start', 'break', 'resume', 'end'
-      const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
-      const now = moment();
-  
-      // Check if karyawanId is defined
-      if (!karyawanId) {
-        return res.status(400).json({ message: 'Invalid karyawan ID' });
-      }
-  
-      // Check if it's a working day (Monday to Friday)
-      const isWorkingDay = now.isoWeekday() >= 1 && now.isoWeekday() <= 5;
-      if (!isWorkingDay) {
-        // Deduct time debt if presence/checkin on Saturday or Sunday
+        const { type } = req.body; // type can be 'start', 'resume', 'end'
+        const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
+        const now = moment();
+
+        // Check if karyawanId is defined
+        if (!karyawanId) {
+            return res.status(400).json({ message: 'Invalid karyawan ID' });
+        }
+
+        const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
+        if (!karyawanDoc.exists) {
+            return res.status(404).json({ message: 'Karyawan not found' });
+        }
+
+        const shift = karyawanDoc.data().shift.toLowerCase(); // Ensure the shift name is in lowercase
+
         const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
         const attendanceDoc = await attendanceRef.get();
-        if (attendanceDoc.exists) {
-          const attendanceData = attendanceDoc.data();
-          attendanceData.timeDebt -= 60; // Deduct 60 minutes (1 hour) from time debt
-          await attendanceRef.update({ timeDebt: attendanceData.timeDebt });
-          return res.status(200).json({ message: 'Presence on non-working day deducted from time debt' });
+
+        if (!attendanceDoc.exists) {
+            await attendanceRef.set({
+                karyawanId: karyawanId,
+                date: now.format('YYYY-MM-DD'),
+                checkInTimes: {
+                    start: null,
+                    resume: null,
+                    end: null
+                },
+                timeDebt: 0
+            });
         }
-      }
-  
-      // Retrieve karyawan data from the database
-      const karyawanRef = db.collection('karyawan').doc(karyawanId);
-      const karyawanDoc = await karyawanRef.get();
-      if (!karyawanDoc.exists) {
-        return res.status(404).json({ message: 'Karyawan not found' });
-      }
-      const karyawanData = karyawanDoc.data();
-  
-      const startTime = moment(now.format('YYYY-MM-DD') + ' ' + karyawanData.startWorkTime);
-      const breakTime = moment(now.format('YYYY-MM-DD') + ' ' + karyawanData.breakTime);
-      const endTime = moment(now.format('YYYY-MM-DD') + ' ' + karyawanData.endWorkTime);
-  
-      // Define check-in times based on the type
-      let checkInTime;
-      if (type === 'start') {
-        checkInTime = startTime;
-      } else if (type === 'break') {
-        checkInTime = breakTime;
-      } else if (type === 'resume') {
-        checkInTime = breakTime.add(1, 'hour'); // Resume after 1 hour break
-      } else if (type === 'end') {
-        checkInTime = endTime;
-      } else {
-        return res.status(400).json({ message: 'Invalid action type' });
-      }
-  
-      // Check if the current time is within the valid check-in window
-      if (now.isBefore(checkInTime)) {
-        return res.status(400).json({ message: `It's not yet time for ${type}` });
-      }
-  
-      // Proceed with check-in
-      const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
-      const attendanceDoc = await attendanceRef.get();
-  
-      if (!attendanceDoc.exists) {
-        await attendanceRef.set({
-          karyawanId: karyawanId,
-          date: now.format('YYYY-MM-DD'),
-          checkInTimes: {
-            start: null,
-            break: null,
-            resume: null,
-            end: null
-          },
-          timeDebt: 0
-        });
-      }
-  
-      const attendanceData = (await attendanceRef.get()).data();
-  
-      // Update check-in time based on the type
-      attendanceData.checkInTimes[type] = now.format();
-  
-      await attendanceRef.update(attendanceData);
-      res.status(200).json(attendanceData);
+
+        const attendanceData = (await attendanceRef.get()).data();
+
+        // Adjust check-in times based on shift
+        let startTime, endTime;
+        if (shift === 'pagi') {
+            startTime = moment(now.format('YYYY-MM-DD') + ' 06:00:00');
+            endTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+        } else if (shift === 'middle') {
+            startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
+            endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+        } else if (shift === 'siang') {
+            startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+            endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00'); // Set end time to the end of the day
+        } else {
+            return res.status(400).json({ message: 'Invalid shift' });
+        }
+
+        // Handling check-in types
+        if (type === 'start') {
+            let timeDebt = 0;
+            if (now.isAfter(startTime)) {
+                timeDebt = now.diff(startTime, 'minutes');
+            }
+            attendanceData.checkInTimes.start = now.format();
+            attendanceData.timeDebt += timeDebt;
+        } else if (type === 'resume') {
+            if (!attendanceData.checkInTimes.start) {
+                return res.status(400).json({ message: 'No start recorded' });
+            }
+            if (!attendanceData.checkInTimes.break) {
+                return res.status(400).json({ message: 'No break recorded' });
+            }
+            const lastBreakTime = moment(attendanceData.checkInTimes.break);
+            const breakDuration = now.diff(lastBreakTime, 'minutes');
+            if (breakDuration > 60) {
+                attendanceData.timeDebt += breakDuration - 60;
+            }
+            attendanceData.checkInTimes.resume = now.format();
+        } else if (type === 'end') {
+            if (now.isAfter(endTime)) {
+                return res.status(400).json({ message: 'End time already passed' });
+            }
+            const shiftEndTime = endTime.clone().subtract(attendanceData.timeDebt, 'minutes');
+            if (now.isBefore(shiftEndTime)) {
+                return res.status(400).json({ message: 'End time before shift end' });
+            }
+            attendanceData.checkInTimes.end = now.format();
+            attendanceData.timeDebt = Math.max(0, attendanceData.timeDebt - now.diff(endTime, 'minutes'));
+        }
+
+        await attendanceRef.update(attendanceData);
+        res.status(200).json(attendanceData);
     } catch (error) {
-      console.error('Error checking in:', error);
-      res.status(500).json({ message: 'Error checking in', error: error.message });
+        console.error('Error checking in:', error);
+        res.status(500).json({ message: 'Error checking in', error: error.message });
     }
-  };
-  
+};
 
 // Function to get attendance by karyawan and date
 const getAttendance = async (req, res) => {
@@ -118,7 +121,7 @@ const getKaryawanReport = async (req, res) => {
       .get();
 
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No attendance records found' });
+      return res.status(404).json({ message: 'No attendance records found on get report per karyawan' });
     }
 
     const report = [];
@@ -133,33 +136,8 @@ const getKaryawanReport = async (req, res) => {
   }
 };
 
-// Function to get attendance report for a specific day
-const getDayReport = async (req, res) => {
-  try {
-    const { date } = req.params;
-    const snapshot = await db.collection('attendance')
-      .where('date', '==', date)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ message: 'No attendance records found for this date' });
-    }
-
-    const report = [];
-    snapshot.forEach(doc => {
-      report.push(doc.data());
-    });
-
-    res.status(200).json(report);
-  } catch (error) {
-    console.error('Error retrieving day report:', error);
-    res.status(500).json({ message: 'Error retrieving day report', error: error.message });
-  }
-};
-
 module.exports = {
   checkIn,
   getAttendance,
-  getKaryawanReport,
-  getDayReport
+  getKaryawanReport
 };
