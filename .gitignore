@@ -1,0 +1,21 @@
+# Example .gitignore file
+
+# Ignore the firebase service account file
+republikweb-presence-system-firebase-adminsdk-k8fxr-7de4ca3058.json
+
+# Ignore node_modules directory
+node_modules/
+
+# Ignore log files
+*.log
+
+# Ignore environment variables file
+.env
+
+# Ignore build directories
+/build
+/dist
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db
