@@ -23,24 +23,38 @@ const authenticateToken = (req, res, next) => {
 
 
 const IsAdmin = (req, res, next) => {
-  const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+  try {
+      // Check for the authorization header
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader) {
+          return res.status(401).json({ message: 'Authorization header missing' });
+      }
 
-  if (!token) {
-      return res.status(401).json({ error: 'Unauthorized: No token provided' });
+      // Split the header to get the token part
+      const token = authHeader.split(' ')[1];
+      
+      if (!token) {
+          return res.status(401).json({ message: 'Token missing' });
+      }
+
+      // Verify the token
+      jwt.verify(token, 'iwishiwasyourjoke', (err, decoded) => {
+          if (err) {
+              return res.status(401).json({ message: 'Invalid token' });
+          }
+
+          // Check if the user is an admin
+          if (!decoded.isAdmin) {
+              return res.status(403).json({ message: 'Access denied. Admins only.' });
+          }
+
+          next();
+      });
+  } catch (error) {
+      console.error('Error in IsAdmin middleware:', error);
+      res.status(500).json({ message: 'Internal server error' });
   }
-
-  jwt.verify(token, 'iwishiwasyourjoke', (err, decoded) => {
-      if (err) {
-          return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-      }
-
-      if (!decoded.isAdmin) {
-          return res.status(403).json({ error: 'Forbidden: Admin access required' });
-      }
-
-      req.user = decoded; // Optionally attach the decoded token to the request object
-      next();
-  });
 };
 
 

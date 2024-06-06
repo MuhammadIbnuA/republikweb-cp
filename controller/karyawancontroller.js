@@ -67,34 +67,35 @@ const createKaryawan = async (req, res) => {
 
   
 
-  const login = async (req, res) => {
+const login = async (req, res) => {
     try {
-      const { username, password } = req.body;
+        const { username, password } = req.body;
   
-      const snapshot = await db.collection('karyawan').where('username', '==', username).get();
-      if (snapshot.empty) {
-        return res.status(401).json({ error: 'Invalid username or password' });
-      }
+        const snapshot = await db.collection('karyawan').where('username', '==', username).get();
+        if (snapshot.empty) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
   
-      let user;
-      snapshot.forEach(doc => {
-        user = doc.data();
-      });
+        let user;
+        snapshot.forEach(doc => {
+            user = doc.data();
+        });
   
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Invalid username or password' });
-      }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
   
-      const token = jwt.sign({ karyawanId: user.karyawan_id, username: user.username }, 'iwishiwasyourjoke', { expiresIn: '1h' });
+        const token = jwt.sign({ karyawanId: user.karyawan_id, username: user.username, isAdmin: user.isAdmin }, 'iwishiwasyourjoke', { expiresIn: '1h' });
   
-      res.cookie('token', token, { maxAge: 3600000, httpOnly: true });
-      res.json({ token });
+        res.cookie('token', token, { maxAge: 3600000, httpOnly: true });
+        res.json({ token });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Server error' });
+        console.error(error);
+        res.status(500).json({ error: 'Server error' });
     }
-  };
+};
+
   
 
 const requestPasswordReset = async (req, res) => {
@@ -177,25 +178,42 @@ const resetPassword = async (req, res) => {
 };
 
 const getKaryawanById = async (req, res) => {
-  try {
-    const karyawanId = parseInt(req.params.id);
-    const karyawanRef = db.collection('karyawan').where('karyawan_id', '==', karyawanId);
-    const snapshot = await karyawanRef.get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ message: 'Karyawan not found' });
+    try {
+      // Get the karyawanId from the request parameters
+      const karyawanId = req.params.id;
+  
+      // Reference to the karyawan collection with the specific karyawan_id
+      const karyawanRef = db.collection('karyawan').where('karyawan_id', '==', karyawanId);
+  
+      // Execute the query and get the snapshot
+      const snapshot = await karyawanRef.get();
+  
+      // Check if the snapshot is empty
+      if (snapshot.empty) {
+        return res.status(404).json({ message: 'Karyawan not found on get karyawan' });
+      }
+  
+      // Initialize karyawanData as an empty array
+      let karyawanData = [];
+  
+      // Loop through the snapshot and collect the data
+      snapshot.forEach(doc => {
+        karyawanData.push(doc.data());
+      });
+  
+      // If only one karyawan is expected, return the first item
+      if (karyawanData.length === 1) {
+        return res.status(200).json(karyawanData[0]);
+      }
+  
+      // Otherwise, return all found karyawans
+      res.status(200).json(karyawanData);
+    } catch (error) {
+      // Handle any errors that occur during the process
+      res.status(500).json({ message: 'Error retrieving karyawan', error: error.message });
     }
-
-    let karyawanData = null;
-    snapshot.forEach(doc => {
-      karyawanData = doc.data();
-    });
-
-    res.status(200).json(karyawanData);
-  } catch (error) {
-    res.status(500).json({ message: 'Error retrieving karyawan', error: error.message });
-  }
-};
+  };
+  
 
 module.exports = {
   createKaryawan,

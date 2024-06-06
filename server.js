@@ -33,18 +33,9 @@ router.post('/attendance/checkin', authenticateToken, attendanceController.check
 router.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController.getAttendance); // tested
 router.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
 router.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
-
-// activity log
-
-router.patch('/karyawan/:karyawanId/activity_logs/:activitylogid/reject', authenticateToken, activitylogcontroller.rejectActivityLog);  
-router.patch('/karyawan/:karyawanId/activity_logs/:activitylogid/accept', authenticateToken, activitylogcontroller.acceptActivityLog); 
-router.put('/karyawan/:karyawanId/activity_logs/:activitylogid', authenticateToken, activitylogcontroller.editActivityLog);
-router.get('/karyawan/:karyawanId/activity_logs', authenticateToken, activitylogcontroller.getActivityLogs);
-router.post('/karyawan/:karyawanId/activity_logs', authenticateToken, activitylogcontroller.addActivityLog);
   
 // project 
-
-router.post('/projects',  projectcontroller.addProject); // Only admin can add projects // tested
+router.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested
 router.get('/projects', projectcontroller.getAllProjects); // tested
 router.get('/projects/:projectId', projectcontroller.getProjectById); // tested
 router.get('/projects/karyawan/:karyawanId', projectcontroller.getProjectsByKaryawanId); // tested
@@ -54,13 +45,11 @@ router.post('/projects/addKaryawan', projectcontroller.addKaryawanToProject); //
 router.put('/projects/editDate', projectcontroller.editProjectDate); // Only admin can edit project dates // tested
 
 // activity log
-
-// Routes for activity logs
-router.post('/activitylog', authenticateToken, activityLogController.addActivityLog); // tested
+router.post('/activitylog',authenticateToken, activityLogController.addActivityLog); // tested
 router.get('/activitylog/:karyawanId', authenticateToken, activityLogController.getActivityLogs); // tested
 router.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activityLogController.editActivityLog); // tested
-router.post('/activitylog/:karyawanId/:activitylogid/accept', authenticateToken, activityLogController.acceptActivityLog);// tested
-router.post('/activitylog/:karyawanId/:activitylogid/reject', authenticateToken, activityLogController.rejectActivityLog);
+router.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
+router.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
 
 
 
