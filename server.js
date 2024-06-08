@@ -11,6 +11,7 @@ const attendanceController = require('./controller/attendancecontroller');
 const reportcontroller = require('./controller/reportcontroller');
 const projectcontroller = require('./controller/projectcontroller');
 const activityLogController = require('./controller/activitylogcontroller');
+const debttimecontroller = require('./controller/debttimecontroller');
 const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
 
 
@@ -50,7 +51,11 @@ router.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activit
 router.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
 router.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
 
-
+// debt time logger
+router.get('/debttime/total/:karyawanId', debttimecontroller.getSumDebtTimeByKaryawanId); // tested
+router.get('/debttime/report/:date', debttimecontroller.getReportOfDebtTimeByDate); // tested
+router.get('/debttime/detail/:karyawanId/:date', debttimecontroller.getDetailDebtTimeOnDate); // tested
+router.get('/debttime/all/:karyawanId', debttimecontroller.getAllReportDebtTimeOfKaryawan); // tested
 
 
 
