@@ -9,7 +9,6 @@ const upload = multer({ storage });
 const karyawanController = require('./controller/karyawancontroller');
 const attendanceController = require('./controller/attendancecontroller');
 const reportcontroller = require('./controller/reportcontroller');
-const activitylogcontroller = require('./controller/activitylogcontroller');
 const projectcontroller = require('./controller/projectcontroller');
 const activityLogController = require('./controller/activitylogcontroller');
 const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
