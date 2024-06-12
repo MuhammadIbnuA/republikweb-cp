@@ -6,62 +6,100 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 
 const createKaryawan = async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
+  if (!req.files || !req.files['profile_photo']) {
+      return res.status(400).json({ message: 'Profile photo is required' });
+  }
 
-    try {
-        const karyawanId = uuidv4(); // Generate UUID for karyawanId
+  try {
+      const karyawanId = uuidv4(); // Generate UUID for karyawanId
 
-        // Set the document path
-        const karyawanRef = db.collection('karyawan').doc(karyawanId); // Set document path using karyawanId
+      // Set the document path
+      const karyawanRef = db.collection('karyawan').doc(karyawanId); // Set document path using karyawanId
 
-        // Upload image to Firebase Storage
-        const imageFileName = `profilepicture_${karyawanId}_${Date.now()}`;
-        const file = bucket.file(imageFileName);
-        const stream = file.createWriteStream({
-            metadata: {
-                contentType: req.file.mimetype
-            }
-        });
+      // Upload profile photo to Firebase Storage
+      const profilePhotoFile = req.files['profile_photo'][0];
+      const profilePhotoFileName = `profilepicture_${karyawanId}_${Date.now()}`;
+      const profilePhotoFileRef = bucket.file(profilePhotoFileName);
+      const profilePhotoStream = profilePhotoFileRef.createWriteStream({
+          metadata: {
+              contentType: profilePhotoFile.mimetype
+          }
+      });
 
-        stream.on('error', (error) => {
-            console.error('Error uploading image to Firebase:', error);
-            return res.status(500).json({ message: 'Error uploading image to Firebase' });
-        });
+      profilePhotoStream.on('error', (error) => {
+          console.error('Error uploading profile photo to Firebase:', error);
+          return res.status(500).json({ message: 'Error uploading profile photo to Firebase' });
+      });
 
-        stream.on('finish', async () => {
-            const profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${imageFileName}`;
+      profilePhotoStream.on('finish', async () => {
+          const profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${profilePhotoFileName}`;
 
-            const hashedPassword = await bcrypt.hash(req.body.password, 10);
+          const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
-            const karyawanData = {
-                karyawan_id: karyawanId,
-                fullname: req.body.fullname,
-                username: req.body.username,
-                email: req.body.email,
-                password: hashedPassword,
-                profile_photo_url: profilePhotoUrl,
-                NIP: req.body.NIP,
-                resetpasswordtoken: '',
-                phoneNumber: req.body.phoneNumber,
-                address: req.body.address,
-                division: req.body.division,
-                shift: req.body.shift, // should be 'pagi' or 'siang'
-                tanggal_lahir: req.body.tanggal_lahir,
-                isAdmin: false // Add isAdmin field with default value false
-            };
+          const karyawanData = {
+              karyawan_id: karyawanId,
+              fullname: req.body.fullname,
+              username: req.body.username,
+              email: req.body.email,
+              password: hashedPassword,
+              profile_photo_url: profilePhotoUrl,
+              NIP: req.body.NIP,
+              resetpasswordtoken: '',
+              phoneNumber: req.body.phoneNumber,
+              division: req.body.division,
+              shift: req.body.shift, // should be 'pagi' or 'siang'
+              tanggal_lahir: req.body.tanggal_lahir,
+              isAdmin: false, // Add isAdmin field with default value false
+              pendidikan_terakhir: req.body.pendidikan_terakhir,
+              tempat_lahir: req.body.tempat_lahir,
+              tanggal_masuk: req.body.tanggal_masuk,
+              tanggal_keluar: req.body.tanggal_keluar,
+              OS: req.body.OS,
+              Browser: req.body.Browser,
+              lokasi_kantor: req.body.lokasi_kantor,
+              barcode_url: '' // Placeholder for the barcode image URL
+          };
 
-            await karyawanRef.set(karyawanData);
+          // Upload barcode image to Firebase Storage if provided
+          if (req.files['barcode']) {
+              const barcodeFile = req.files['barcode'][0];
+              const barcodeFileName = `barcode_${karyawanId}_${Date.now()}`;
+              const barcodeFileRef = bucket.file(barcodeFileName);
+              const barcodeStream = barcodeFileRef.createWriteStream({
+                  metadata: {
+                      contentType: barcodeFile.mimetype
+                  }
+              });
 
-            res.status(201).json(karyawanData);
-        });
+              barcodeStream.on('error', (error) => {
+                  console.error('Error uploading barcode to Firebase:', error);
+                  return res.status(500).json({ message: 'Error uploading barcode to Firebase' });
+              });
 
-        stream.end(req.file.buffer);
-    } catch (error) {
-        res.status(500).json({ message: 'Error creating karyawan', error: error.message });
-    }
+              barcodeStream.on('finish', async () => {
+                  const barcodeUrl = `https://storage.googleapis.com/${bucket.name}/${barcodeFileName}`;
+                  karyawanData.barcode_url = barcodeUrl;
+
+                  // Save the karyawan data after uploading the barcode
+                  await karyawanRef.set(karyawanData);
+                  res.status(201).json(karyawanData);
+              });
+
+              barcodeStream.end(barcodeFile.buffer);
+          } else {
+              // Save the karyawan data without the barcode
+              await karyawanRef.set(karyawanData);
+              res.status(201).json(karyawanData);
+          }
+      });
+
+      profilePhotoStream.end(profilePhotoFile.buffer);
+  } catch (error) {
+      res.status(500).json({ message: 'Error creating karyawan', error: error.message });
+  }
 };
+
+
 
   
 
@@ -178,41 +216,42 @@ const resetPassword = async (req, res) => {
 };
 
 const getKaryawanById = async (req, res) => {
-    try {
+  try {
       // Get the karyawanId from the request parameters
       const karyawanId = req.params.id;
-  
+
       // Reference to the karyawan collection with the specific karyawan_id
       const karyawanRef = db.collection('karyawan').where('karyawan_id', '==', karyawanId);
-  
+
       // Execute the query and get the snapshot
       const snapshot = await karyawanRef.get();
-  
+
       // Check if the snapshot is empty
       if (snapshot.empty) {
-        return res.status(404).json({ message: 'Karyawan not found on get karyawan' });
+          return res.status(404).json({ message: 'Karyawan not found' });
       }
-  
+
       // Initialize karyawanData as an empty array
       let karyawanData = [];
-  
+
       // Loop through the snapshot and collect the data
       snapshot.forEach(doc => {
-        karyawanData.push(doc.data());
+          karyawanData.push(doc.data());
       });
-  
+
       // If only one karyawan is expected, return the first item
       if (karyawanData.length === 1) {
-        return res.status(200).json(karyawanData[0]);
+          return res.status(200).json(karyawanData[0]);
       }
-  
+
       // Otherwise, return all found karyawans
       res.status(200).json(karyawanData);
-    } catch (error) {
+  } catch (error) {
       // Handle any errors that occur during the process
       res.status(500).json({ message: 'Error retrieving karyawan', error: error.message });
-    }
-  };
+  }
+};
+
   
 
 module.exports = {

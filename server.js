@@ -6,6 +6,7 @@ const app = express();
 const multer = require('multer')
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+const cors = require('cors');
 const karyawanController = require('./controller/karyawancontroller');
 const attendanceController = require('./controller/attendancecontroller');
 const reportcontroller = require('./controller/reportcontroller');
@@ -17,12 +18,16 @@ const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
 
 // Middleware
 app.use(express.json());
+app.use(cors());
 app.use(bodyParser.json());
 app.use('/v1', router);
 dotenv.config();
 
 // endpoint
-router.post('/karyawan/register', upload.single('profile_photo'), karyawanController.createKaryawan); // tested
+router.post('/karyawan/register', upload.fields([
+  { name: 'profile_photo', maxCount: 1 },
+  { name: 'barcode', maxCount: 1 }
+]), karyawanController.createKaryawan); // tested
 router.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
 router.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested
 router.post('/karyawan/reset-password', karyawanController.resetPassword); // tested
