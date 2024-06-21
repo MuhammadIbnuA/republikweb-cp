@@ -100,11 +100,6 @@ const createKaryawan = async (req, res) => {
 };
 
 
-
-  
-
-  
-
 const login = async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -124,7 +119,7 @@ const login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
   
-        const token = jwt.sign({ karyawanId: user.karyawan_id, username: user.username, isAdmin: user.isAdmin }, 'iwishiwasyourjoke', { expiresIn: '1h' });
+        const token = jwt.sign({ karyawanId: user.karyawan_id, username: user.username, isAdmin: user.isAdmin ,}, 'iwishiwasyourjoke', { expiresIn: '1h' });
   
         res.cookie('token', token, { maxAge: 3600000, httpOnly: true });
         res.json({ token });
@@ -152,9 +147,13 @@ const requestPasswordReset = async (req, res) => {
     });
 
     const otp = crypto.randomBytes(3).toString('hex');
-    user.resetpasswordtoken = await bcrypt.hash(otp, 10);
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes from now
 
-    await db.collection('karyawan').doc(user.id).update({ resetpasswordtoken: user.resetpasswordtoken });
+    await db.collection('karyawan').doc(user.id).update({
+      resetpasswordtoken: otpHash,
+      otpExpiry: otpExpiry,
+    });
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -168,7 +167,7 @@ const requestPasswordReset = async (req, res) => {
       from: process.env.EMAIL,
       to: user.email,
       subject: 'Password Reset OTP',
-      text: `Your OTP for password reset is: ${otp}`,
+      text: `Your OTP for password reset is: ${otp}. It will expire in 5 minutes.`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -179,6 +178,7 @@ const requestPasswordReset = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
 const resetPassword = async (req, res) => {
   try {
@@ -195,6 +195,10 @@ const resetPassword = async (req, res) => {
       user.id = doc.id; // Store document ID to update later
     });
 
+    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
     const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
     if (!isOtpValid) {
       return res.status(400).json({ error: 'Invalid OTP' });
@@ -202,10 +206,12 @@ const resetPassword = async (req, res) => {
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetpasswordtoken = '';
+    user.otpExpiry = null;
 
     await db.collection('karyawan').doc(user.id).update({
       password: user.password,
       resetpasswordtoken: '',
+      otpExpiry: null,
     });
 
     res.json({ message: 'Password has been reset' });
@@ -214,6 +220,7 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
 const getKaryawanById = async (req, res) => {
   try {

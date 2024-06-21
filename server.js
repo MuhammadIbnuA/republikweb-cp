@@ -29,8 +29,8 @@ router.post('/karyawan/register', upload.fields([
   { name: 'barcode', maxCount: 1 }
 ]), karyawanController.createKaryawan); // tested
 router.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
-router.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested
-router.post('/karyawan/reset-password', karyawanController.resetPassword); // tested
+router.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
+router.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
 router.post('/karyawan/login', karyawanController.login); // tested
 
 // attendance
