@@ -19,7 +19,7 @@ const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: '*',  // Or '*' for any origin (less secure)
+  origin: 'http://localhost:3002', // Updated origin
   methods: ['GET', 'POST', 'PUT', 'DELETE'], 
   allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
@@ -68,7 +68,7 @@ router.get('/debttime/all/:karyawanId', debttimecontroller.getAllReportDebtTimeO
 
 
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
