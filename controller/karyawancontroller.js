@@ -38,7 +38,9 @@ const createKaryawan = async (req, res) => {
       profilePhotoStream.end(profilePhotoFile.buffer);
     } else {
       // Use default profile photo URL if not provided
-      profilePhotoUrl = 'https://drive.google.com/file/d/1VRibxihKWj-ht1XPaeDcqjQppZzU373V/view?usp=sharing'; // Replace with your default image URL
+      const defaultPhotoName = 'person-svgrepo-com.png';
+      profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${defaultPhotoName}`; 
+     // Replace with your default image URL
 
       await saveKaryawan(profilePhotoUrl); // Save karyawan data with the default profile photo URL
     }
