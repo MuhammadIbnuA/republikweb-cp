@@ -19,7 +19,7 @@ const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:3002', // Updated origin
+  origin: '*', // Updated origin
   methods: ['GET', 'POST', 'PUT', 'DELETE'], 
   allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
