@@ -12,7 +12,7 @@ async function createKaryawan(req, res) {
 
     // Ensure the default photo is in Firebase Storage
     const defaultPhotoName = 'person-svgrepo-com.png'; 
-    const defaultPhotoPath = path.join(__dirname, './', defaultPhotoName);
+    const defaultPhotoPath = path.join(__dirname, './controller', defaultPhotoName);
 
     try {
       await bucket.file(defaultPhotoName).getMetadata();
