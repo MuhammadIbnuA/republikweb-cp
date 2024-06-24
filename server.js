@@ -18,7 +18,11 @@ const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: '*',  // Or '*' for any origin (less secure)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  allowedHeaders: ['Content-Type', 'Authorization'] 
+}));
 app.use(bodyParser.json());
 app.use('/v1', router);
 dotenv.config();
