@@ -1,7 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const dotenv = require("dotenv");
-const router = express.Router();
 const app = express();
 const multer = require('multer')
 const storage = multer.memoryStorage();
@@ -14,6 +13,7 @@ const projectcontroller = require('./controller/projectcontroller');
 const activityLogController = require('./controller/activitylogcontroller');
 const debttimecontroller = require('./controller/debttimecontroller');
 const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
+const router = express.Router()
 
 
 // Middleware
@@ -28,51 +28,43 @@ app.use('/v1', router);
 dotenv.config();
 
 // endpoint
-router.post('/karyawan/register', upload.fields([
+app.post('/karyawan/register', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'barcode', maxCount: 1 }
-]), karyawanController.createKaryawan, cors({
-  origin: '*', // Updated origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  allowedHeaders: ['Content-Type', 'Authorization'] 
-})); // tested
-router.get('/karyawan/:id', karyawanController.getKaryawanById,cors({
-  origin: '*', // Updated origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  allowedHeaders: ['Content-Type', 'Authorization'] 
-})); // tested
-router.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
-router.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
-router.post('/karyawan/login', karyawanController.login); // tested
+]), karyawanController.createKaryawan); // tested
+app.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
+app.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
+app.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
+app.post('/karyawan/login', karyawanController.login); // tested
 
 // attendance
-router.post('/attendance/checkin', authenticateToken, attendanceController.checkIn); // tested
-router.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController.getAttendance); // tested
-router.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
-router.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
+app.post('/attendance/checkin', authenticateToken, attendanceController.checkIn); // tested
+app.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController.getAttendance); // tested
+app.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
+app.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
   
 // project 
-router.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested
-router.get('/projects', projectcontroller.getAllProjects); // tested
-router.get('/projects/:projectId', projectcontroller.getProjectById); // tested
-router.get('/projects/karyawan/:karyawanId', projectcontroller.getProjectsByKaryawanId); // tested
-router.get('/projects/:projectId/members', projectcontroller.getMembersOfProject); // tested
-router.get('/active-projects', projectcontroller.getActiveProjects); // tested
-router.post('/projects/addKaryawan', projectcontroller.addKaryawanToProject); // Only admin can add karyawan to projects // tested
-router.put('/projects/editDate', projectcontroller.editProjectDate); // Only admin can edit project dates // tested
+app.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested
+app.get('/projects', projectcontroller.getAllProjects); // tested
+app.get('/projects/:projectId', projectcontroller.getProjectById); // tested
+app.get('/projects/karyawan/:karyawanId', projectcontroller.getProjectsByKaryawanId); // tested
+app.get('/projects/:projectId/members', projectcontroller.getMembersOfProject); // tested
+app.get('/active-projects', projectcontroller.getActiveProjects); // tested
+app.post('/projects/addKaryawan', projectcontroller.addKaryawanToProject); // Only admin can add karyawan to projects // tested
+app.put('/projects/editDate', projectcontroller.editProjectDate); // Only admin can edit project dates // tested
 
 // activity log
-router.post('/activitylog',authenticateToken, activityLogController.addActivityLog); // tested
-router.get('/activitylog/:karyawanId', authenticateToken, activityLogController.getActivityLogs); // tested
-router.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activityLogController.editActivityLog); // tested
-router.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
-router.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
+app.post('/activitylog',authenticateToken, activityLogController.addActivityLog); // tested
+app.get('/activitylog/:karyawanId', authenticateToken, activityLogController.getActivityLogs); // tested
+app.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activityLogController.editActivityLog); // tested
+app.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
+app.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
 
 // debt time logger
-router.get('/debttime/total/:karyawanId', debttimecontroller.getSumDebtTimeByKaryawanId); // tested
-router.get('/debttime/report/:date', debttimecontroller.getReportOfDebtTimeByDate); // tested
-router.get('/debttime/detail/:karyawanId/:date', debttimecontroller.getDetailDebtTimeOnDate); // tested
-router.get('/debttime/all/:karyawanId', debttimecontroller.getAllReportDebtTimeOfKaryawan); // tested
+app.get('/debttime/total/:karyawanId', debttimecontroller.getSumDebtTimeByKaryawanId); // tested
+app.get('/debttime/report/:date', debttimecontroller.getReportOfDebtTimeByDate); // tested
+app.get('/debttime/detail/:karyawanId/:date', debttimecontroller.getDetailDebtTimeOnDate); // tested
+app.get('/debttime/all/:karyawanId', debttimecontroller.getAllReportDebtTimeOfKaryawan); // tested
 
 
 
