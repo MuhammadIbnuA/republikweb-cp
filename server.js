@@ -31,7 +31,7 @@ dotenv.config();
 router.post('/karyawan/register', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'barcode', maxCount: 1 }
-]), karyawanController.createKaryawan); // tested
+]), karyawanController.createKaryawan, cors()); // tested
 router.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
 router.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
 router.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
