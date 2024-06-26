@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path'); 
 
 async function createKaryawan(req, res) {
   try {
@@ -12,7 +13,7 @@ async function createKaryawan(req, res) {
 
     // Ensure the default photo is in Firebase Storage
     const defaultPhotoName = 'person-svgrepo-com.png'; 
-    const defaultPhotoPath = path.join(__dirname, './', defaultPhotoName);
+    const defaultPhotoPath = path.join(__dirname, defaultPhotoName);
 
     try {
       await bucket.file(defaultPhotoName).getMetadata();
