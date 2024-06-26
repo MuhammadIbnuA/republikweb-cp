@@ -56,7 +56,7 @@ async function createKaryawan(req, res) {
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
-      shift: req.body.shift, 
+      shift: req.body.shift || 'pagi', // default pagi
       tanggal_lahir: req.body.tanggal_lahir,
       isAdmin: false, 
       pendidikan_terakhir: req.body.pendidikan_terakhir,
