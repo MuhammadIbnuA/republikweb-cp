@@ -56,7 +56,7 @@ app.put('/projects/editDate', projectcontroller.editProjectDate); // Only admin 
 // activity log
 app.post('/activitylog',authenticateToken, activityLogController.addActivityLog); // tested
 app.get('/activitylog/:karyawanId', authenticateToken, activityLogController.getActivityLogs); // tested
-app.get('/activityLogs/:karyawanId/byDate', authenticateToken, activityLogController.getActivityLogsByDate);
+app.get('/activitylog/:date', authenticateToken, activityLogController.getActivityLogsByDate);
 app.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activityLogController.editActivityLog); // tested
 app.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
 app.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 

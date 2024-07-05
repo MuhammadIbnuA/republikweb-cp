@@ -165,25 +165,24 @@ const rejectActivityLog = async (req, res) => {
 
 const getActivityLogsByDate = async (req, res) => {
   try {
-    const { karyawanId } = req.params;
-    const { startDate, endDate } = req.query;
+    const { date } = req.query;
 
-    // Convert the dates to Date objects
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Convert the date to a Date object and get the start and end of the day
+    const start = moment(date).startOf('day').toDate();
+    const end = moment(date).endOf('day').toDate();
 
     if (isNaN(start) || isNaN(end)) {
       return res.status(400).json({ message: 'Invalid date format' });
     }
 
-    // Query activity logs within the date range
-    const snapshot = await db.collection('karyawan').doc(karyawanId).collection('activity_logs')
+    // Query all activity logs within the date range
+    const snapshot = await db.collectionGroup('activity_logs')
       .where('date', '>=', start)
       .where('date', '<=', end)
       .get();
 
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No activity logs found within the specified date range' });
+      return res.status(404).json({ message: 'No activity logs found on the specified date' });
     }
 
     const logs = [];
