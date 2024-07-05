@@ -34,7 +34,6 @@ const getTimeDebtReportByDate = async (date) => {
     return report;
 };
 
-
 const getTimeDebtDetailByDate = async (karyawanId, date) => {
     const docRef = db.collection('attendance').doc(`${karyawanId}-${date}`);
     const doc = await docRef.get();
@@ -84,7 +83,6 @@ const getReportOfDebtTimeByDate = async (req, res) => {
         res.status(500).json({ message: 'Error getting debt time report by date', error: error.message });
     }
 };
-
 
 const getDetailDebtTimeOnDate = async (req, res) => {
     try {
@@ -191,14 +189,31 @@ const getWorkTimeHistoryByKaryawanId = async (karyawanId) => {
     return history;
 };
 
-
+// Export module
 module.exports = {
     getSumDebtTimeByKaryawanId,
     getReportOfDebtTimeByDate,
     getDetailDebtTimeOnDate,
     getAllReportDebtTimeOfKaryawan,
     getWorkTimeExcludingBreaksController,
-    getAllWorkTimeByDateController,       // New function added here
-    getWorkTimeHistoryByKaryawanIdController // New function added here
+    getAllWorkTimeByDateController: async (req, res) => {
+        try {
+            const { date } = req.params;
+            const report = await getAllWorkTimeByDate(date);
+            res.status(200).json(report);
+        } catch (error) {
+            console.error('Error getting all work time by date:', error);
+            res.status(500).json({ message: 'Error getting all work time by date', error: error.message });
+        }
+    },
+    getWorkTimeHistoryByKaryawanIdController: async (req, res) => {
+        try {
+            const { karyawanId } = req.params;
+            const history = await getWorkTimeHistoryByKaryawanId(karyawanId);
+            res.status(200).json(history);
+        } catch (error) {
+            console.error('Error getting work time history by karyawanId:', error);
+            res.status(500).json({ message: 'Error getting work time history by karyawanId', error: error.message });
+        }
+    }
 };
-

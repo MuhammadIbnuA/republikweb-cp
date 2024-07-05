@@ -11,7 +11,15 @@ const attendanceController = require('./controller/attendancecontroller');
 const reportcontroller = require('./controller/reportcontroller');
 const projectcontroller = require('./controller/projectcontroller');
 const activityLogController = require('./controller/activitylogcontroller');
-const debttimecontroller = require('./controller/debttimecontroller');
+const {
+  getSumDebtTimeByKaryawanId,
+  getReportOfDebtTimeByDate,
+  getDetailDebtTimeOnDate,
+  getAllReportDebtTimeOfKaryawan,
+  getWorkTimeExcludingBreaksController,
+  getAllWorkTimeByDateController,
+  getWorkTimeHistoryByKaryawanIdController
+} = require('./controller/debttimecontroller');
 const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
 const router = express.Router()
 
@@ -62,16 +70,15 @@ app.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateT
 app.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
 
 // debt time logger
-app.get('/debttime/total/:karyawanId', debttimecontroller.getSumDebtTimeByKaryawanId); // tested
-app.get('/debttime/report/:date', debttimecontroller.getReportOfDebtTimeByDate); // tested
-app.get('/debttime/detail/:karyawanId/:date', debttimecontroller.getDetailDebtTimeOnDate); // tested
-app.get('/debttime/all/:karyawanId', debttimecontroller.getAllReportDebtTimeOfKaryawan); // tested
+app.get('/debttime/total/:karyawanId', getSumDebtTimeByKaryawanId); // tested
+app.get('/debttime/report/:date', getReportOfDebtTimeByDate); // tested
+app.get('/debttime/detail/:karyawanId/:date', getDetailDebtTimeOnDate); // tested
+app.get('/debttime/all/:karyawanId', getAllReportDebtTimeOfKaryawan); // tested
 
 // worktime counter
 app.get('/worktime/:karyawanId/:date', getWorkTimeExcludingBreaksController); // New route
-app.get('/worktimedate/:date', getAllWorkTimeByDateController);          // New route
+app.get('/worktimedate/:date', getAllWorkTimeByDateController); // New route
 app.get('/worktimehistory/:karyawanId', getWorkTimeHistoryByKaryawanIdController); // New route
-
 
 
 
