@@ -163,10 +163,47 @@ const rejectActivityLog = async (req, res) => {
   }
 };
 
+const getActivityLogsByDate = async (req, res) => {
+  try {
+    const { karyawanId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Convert the dates to Date objects
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (isNaN(start) || isNaN(end)) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+
+    // Query activity logs within the date range
+    const snapshot = await db.collection('karyawan').doc(karyawanId).collection('activity_logs')
+      .where('date', '>=', start)
+      .where('date', '<=', end)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No activity logs found within the specified date range' });
+    }
+
+    const logs = [];
+    snapshot.forEach(doc => {
+      logs.push(doc.data());
+    });
+
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error('Error retrieving activity logs by date:', error);
+    res.status(500).json({ message: 'Error retrieving activity logs by date', error: error.message });
+  }
+};
+
+
 module.exports = {
   addActivityLog,
   getActivityLogs,
   editActivityLog,
   acceptActivityLog,
-  rejectActivityLog
+  rejectActivityLog,
+  getActivityLogsByDate
 };

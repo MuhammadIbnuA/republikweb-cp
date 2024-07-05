@@ -56,6 +56,7 @@ app.put('/projects/editDate', projectcontroller.editProjectDate); // Only admin 
 // activity log
 app.post('/activitylog',authenticateToken, activityLogController.addActivityLog); // tested
 app.get('/activitylog/:karyawanId', authenticateToken, activityLogController.getActivityLogs); // tested
+app.get('/activityLogs/:karyawanId/byDate', authenticateToken, activityLogController.getActivityLogsByDate);
 app.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activityLogController.editActivityLog); // tested
 app.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
 app.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
@@ -65,6 +66,12 @@ app.get('/debttime/total/:karyawanId', debttimecontroller.getSumDebtTimeByKaryaw
 app.get('/debttime/report/:date', debttimecontroller.getReportOfDebtTimeByDate); // tested
 app.get('/debttime/detail/:karyawanId/:date', debttimecontroller.getDetailDebtTimeOnDate); // tested
 app.get('/debttime/all/:karyawanId', debttimecontroller.getAllReportDebtTimeOfKaryawan); // tested
+
+// worktime counter
+app.get('/worktime/:karyawanId/:date', getWorkTimeExcludingBreaksController); // New route
+app.get('/worktimedate/:date', getAllWorkTimeByDateController);          // New route
+app.get('/worktimehistory/:karyawanId', getWorkTimeHistoryByKaryawanIdController); // New route
+
 
 
 

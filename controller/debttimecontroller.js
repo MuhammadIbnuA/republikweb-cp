@@ -108,9 +108,97 @@ const getAllReportDebtTimeOfKaryawan = async (req, res) => {
     }
 };
 
+const calculateWorkTimeExcludingBreaks = (startTime, endTime, breaks) => {
+    const start = moment(startTime);
+    const end = moment(endTime);
+
+    let totalWorkTime = end.diff(start, 'minutes');
+
+    breaks.forEach(breakPeriod => {
+        const breakStart = moment(breakPeriod.start);
+        const breakEnd = moment(breakPeriod.end);
+        totalWorkTime -= breakEnd.diff(breakStart, 'minutes');
+    });
+
+    return totalWorkTime;
+};
+
+const getWorkTimeExcludingBreaks = async (karyawanId, date) => {
+    const docRef = db.collection('attendance').doc(`${karyawanId}-${date}`);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+        throw new Error('Attendance record not found');
+    }
+
+    const { startTime, endTime, breaks } = doc.data();
+    const workTime = calculateWorkTimeExcludingBreaks(startTime, endTime, breaks);
+
+    return {
+        karyawanId,
+        date,
+        workTime
+    };
+};
+
+const getWorkTimeExcludingBreaksController = async (req, res) => {
+    try {
+        const { karyawanId, date } = req.params;
+        const workTimeData = await getWorkTimeExcludingBreaks(karyawanId, date);
+        res.status(200).json(workTimeData);
+    } catch (error) {
+        console.error('Error getting work time excluding breaks:', error);
+        res.status(500).json({ message: 'Error getting work time excluding breaks', error: error.message });
+    }
+};
+
+const getAllWorkTimeByDate = async (date) => {
+    const snapshot = await db.collection('attendance')
+        .where('date', '==', date)
+        .get();
+
+    if (snapshot.empty) {
+        throw new Error('No work time records found for this date');
+    }
+
+    const report = [];
+    snapshot.forEach(doc => {
+        const { karyawanId, startTime, endTime, breaks } = doc.data();
+        const workTime = calculateWorkTimeExcludingBreaks(startTime, endTime, breaks);
+        report.push({ karyawanId, date, workTime });
+    });
+
+    return report;
+};
+
+const getWorkTimeHistoryByKaryawanId = async (karyawanId) => {
+    const snapshot = await db.collection('attendance')
+        .where('karyawanId', '==', karyawanId)
+        .orderBy('date', 'asc')
+        .get();
+
+    if (snapshot.empty) {
+        throw new Error('No work time records found for this karyawan');
+    }
+
+    const history = [];
+    snapshot.forEach(doc => {
+        const { date, startTime, endTime, breaks } = doc.data();
+        const workTime = calculateWorkTimeExcludingBreaks(startTime, endTime, breaks);
+        history.push({ karyawanId, date, workTime });
+    });
+
+    return history;
+};
+
+
 module.exports = {
     getSumDebtTimeByKaryawanId,
     getReportOfDebtTimeByDate,
     getDetailDebtTimeOnDate,
     getAllReportDebtTimeOfKaryawan,
+    getWorkTimeExcludingBreaksController,
+    getAllWorkTimeByDateController,       // New function added here
+    getWorkTimeHistoryByKaryawanIdController // New function added here
 };
+
