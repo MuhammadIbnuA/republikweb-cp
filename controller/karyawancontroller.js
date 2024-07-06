@@ -149,12 +149,12 @@ const requestPasswordReset = async (req, res) => {
     let user;
     snapshot.forEach(doc => {
       user = doc.data();
-      user.id = doc.id; // Store document ID to update later
+      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
     });
 
-    const otp = crypto.randomBytes(3).toString('hex');
-    const otpHash = await bcrypt.hash(otp, 10);
-    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+    const otp = crypto.randomBytes(3).toString('hex'); // OTP dalam bentuk mentah
+    const otpHash = await bcrypt.hash(otp, 10); // Hash OTP sebelum menyimpannya
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 menit dari sekarang
 
     await db.collection('karyawan').doc(user.id).update({
       resetpasswordtoken: otpHash,
@@ -190,9 +190,9 @@ const validateOtp = async (req, res) => {
     const { otp } = req.body;
 
     // Cari pengguna berdasarkan OTP
-    const snapshot = await db.collection('karyawan').where('resetpasswordtoken', '==', otp).get();
+    const snapshot = await db.collection('karyawan').where('resetpasswordtoken', '!=', '').get();
     if (snapshot.empty) {
-      return res.status(400).json({ error: 'Invalid OTP' });
+      return res.status(400).json({ error: 'No users with a reset OTP found' });
     }
 
     let user;
@@ -201,9 +201,15 @@ const validateOtp = async (req, res) => {
       user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
     });
 
-    // Verifikasi apakah OTP masih berlaku
+    // Periksa apakah OTP masih berlaku
     if (!user.otpExpiry || user.otpExpiry < Date.now()) {
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Verifikasi OTP
+    const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
+    if (!isOtpValid) {
+      return res.status(400).json({ error: 'Invalid OTP' });
     }
 
     // Jika OTP valid, beri tahu pengguna
@@ -213,7 +219,6 @@ const validateOtp = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
 
 const resetPassword = async (req, res) => {
   try {
@@ -246,7 +251,6 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
 
 const getKaryawanById = async (req, res) => {
   try {
