@@ -141,6 +141,12 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // 1. Validasi input email
+    if (!email || !validateEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    // 2. Cari pengguna di database
     const snapshot = await db.collection('karyawan').where('email', '==', email).get();
     if (snapshot.empty) {
       return res.status(400).json({ error: 'User with this email does not exist' });
@@ -149,18 +155,21 @@ const requestPasswordReset = async (req, res) => {
     let user;
     snapshot.forEach(doc => {
       user = doc.data();
-      user.id = doc.id; // Store document ID to update later
+      user.id = doc.id;
     });
 
+    // 3. Buat OTP dan hash
     const otp = crypto.randomBytes(3).toString('hex');
     const otpHash = await bcrypt.hash(otp, 10);
-    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 menit
 
+    // 4. Update dokumen pengguna
     await db.collection('karyawan').doc(user.id).update({
       resetpasswordtoken: otpHash,
       otpExpiry: otpExpiry,
     });
 
+    // 5. Kirim email dengan OTP
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -180,16 +189,16 @@ const requestPasswordReset = async (req, res) => {
 
     res.json({ message: 'OTP sent to email' });
   } catch (error) {
-    console.error(error);
+    console.error('Error during password reset request:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-
-const resetPassword = async (req, res) => {
+const validateOtp = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email, otp } = req.body;
 
+    // 1. Ambil pengguna dari database berdasarkan email
     const snapshot = await db.collection('karyawan').where('email', '==', email).get();
     if (snapshot.empty) {
       return res.status(400).json({ error: 'User with this email does not exist' });
@@ -198,31 +207,81 @@ const resetPassword = async (req, res) => {
     let user;
     snapshot.forEach(doc => {
       user = doc.data();
-      user.id = doc.id; // Store document ID to update later
+      user.id = doc.id; // Simpan ID dokumen untuk update nanti
     });
 
+    // 2. Verifikasi masa berlaku OTP
     if (!user.otpExpiry || user.otpExpiry < Date.now()) {
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
 
+    // 3. Cocokkan OTP yang diberikan dengan OTP yang disimpan
     const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
     if (!isOtpValid) {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.resetpasswordtoken = '';
-    user.otpExpiry = null;
+    // 4. OTP valid: Hapus token dan masa berlaku dari database
+    await db.collection('karyawan').doc(user.id).update({
+      resetpasswordtoken: '',
+      otpExpiry: null,
+    });
+
+    res.json({ message: 'OTP validated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    // 1. Validasi input
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+    }
+
+    if (newPassword.length < 8) { // Contoh validasi kekuatan kata sandi
+      return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+    }
+
+    // 2. Cari pengguna di database
+    const snapshot = await db.collection('karyawan').where('email', '==', email).get();
+    if (snapshot.empty) {
+      return res.status(400).json({ error: 'User with this email does not exist' });
+    }
+
+    let user;
+    snapshot.forEach(doc => {
+      user = doc.data();
+      user.id = doc.id;
+    });
+
+    // 3. Verifikasi masa berlaku OTP
+    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // 4. Verifikasi OTP
+    const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
+    if (!isOtpValid) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    // 5. Update kata sandi dan hapus OTP
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await db.collection('karyawan').doc(user.id).update({
-      password: user.password,
+      password: hashedPassword,
       resetpasswordtoken: '',
       otpExpiry: null,
     });
 
     res.json({ message: 'Password has been reset' });
   } catch (error) {
-    console.error(error);
+    console.error('Error during password reset:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -271,6 +330,7 @@ module.exports = {
   createKaryawan,
   login,
   requestPasswordReset,
+  validateOtp,
   resetPassword,
   getKaryawanById
 };

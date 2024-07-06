@@ -42,6 +42,7 @@ app.post('/karyawan/register', upload.fields([
 ]), karyawanController.createKaryawan); // tested
 app.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
 app.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
+app.post('/karyawan/validasi-otp', karyawanController.validateOtp);
 app.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
 app.post('/karyawan/login', karyawanController.login); // tested
 
