@@ -141,6 +141,7 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Cari pengguna berdasarkan email
     const snapshot = await db.collection('karyawan').where('email', '==', email).get();
     if (snapshot.empty) {
       return res.status(400).json({ error: 'User with this email does not exist' });
@@ -152,15 +153,20 @@ const requestPasswordReset = async (req, res) => {
       user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
     });
 
-    const otp = crypto.randomBytes(3).toString('hex'); // OTP dalam bentuk mentah
-    const otpHash = await bcrypt.hash(otp, 10); // Hash OTP sebelum menyimpannya
-    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 menit dari sekarang
+    // Generate OTP dalam bentuk mentah
+    const otp = crypto.randomBytes(3).toString('hex'); // Contoh OTP: "f5e3d8"
+    // Hash OTP sebelum menyimpannya
+    const otpHash = await bcrypt.hash(otp, 10);
+    // Set waktu kedaluwarsa OTP (5 menit dari sekarang)
+    const otpExpiry = Date.now() + 5 * 60 * 1000;
 
+    // Simpan OTP hash dan waktu kedaluwarsa ke database
     await db.collection('karyawan').doc(user.id).update({
       resetpasswordtoken: otpHash,
       otpExpiry: otpExpiry,
     });
 
+    // Kirim OTP mentah ke email pengguna
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -185,11 +191,12 @@ const requestPasswordReset = async (req, res) => {
   }
 };
 
+
 const validateOtp = async (req, res) => {
   try {
     const { otp } = req.body;
 
-    // Cari pengguna berdasarkan OTP
+    // Cari pengguna berdasarkan OTP hash
     const snapshot = await db.collection('karyawan').where('resetpasswordtoken', '!=', '').get();
     if (snapshot.empty) {
       return res.status(400).json({ error: 'No users with a reset OTP found' });
@@ -206,7 +213,7 @@ const validateOtp = async (req, res) => {
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
 
-    // Verifikasi OTP
+    // Verifikasi OTP dengan hash yang ada di database
     const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
     if (!isOtpValid) {
       return res.status(400).json({ error: 'Invalid OTP' });
@@ -219,6 +226,7 @@ const validateOtp = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
 const resetPassword = async (req, res) => {
   try {
@@ -251,6 +259,7 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
 const getKaryawanById = async (req, res) => {
   try {
