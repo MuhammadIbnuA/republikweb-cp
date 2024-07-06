@@ -157,10 +157,10 @@ const requestPasswordReset = async (req, res) => {
     const otp = crypto.randomBytes(3).toString('hex'); // Contoh OTP: "f5e3d8"
     // Hash OTP sebelum menyimpannya
     const otpHash = await bcrypt.hash(otp, 10);
-    // Set waktu kedaluwarsa OTP (5 menit dari sekarang)
-    const otpExpiry = Date.now() + 5 * 60 * 1000;
+    // Set waktu kedaluwarsa OTP (1 menit dari sekarang)
+    const otpExpiry = Date.now() + 1 * 60 * 1000;
 
-    // Simpan OTP hash dan waktu kedaluwarsa ke database
+    // Hapus OTP lama jika ada
     await db.collection('karyawan').doc(user.id).update({
       resetpasswordtoken: otpHash,
       otpExpiry: otpExpiry,
@@ -179,18 +179,17 @@ const requestPasswordReset = async (req, res) => {
       from: process.env.EMAIL,
       to: user.email,
       subject: 'Password Reset OTP',
-      text: `Your OTP for password reset is: ${otp}. It will expire in 5 minutes.`,
+      text: `Your new OTP for password reset is: ${otp}. It will expire in 1 minute.`,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.json({ message: 'OTP sent to email' });
+    res.json({ message: 'New OTP sent to email' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 };
-
 
 const validateOtp = async (req, res) => {
   try {
@@ -226,7 +225,6 @@ const validateOtp = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
 
 const resetPassword = async (req, res) => {
   try {
