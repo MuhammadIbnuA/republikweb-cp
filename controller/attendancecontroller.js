@@ -143,8 +143,28 @@ const getKaryawanReport = async (req, res) => {
   }
 };
 
+// New function to get today's attendance for a karyawan
+const getTodayAttendance = async (req, res) => {
+  try {
+    const karyawanId = req.karyawanId;
+    const now = moment().format('YYYYMMDD');
+    const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now}`);
+    const attendanceDoc = await attendanceRef.get();
+
+    if (!attendanceDoc.exists) {
+      return res.status(404).json({ message: 'Attendance record not found for today' });
+    }
+
+    res.status(200).json(attendanceDoc.data());
+  } catch (error) {
+    console.error('Error retrieving today\'s attendance:', error);
+    res.status(500).json({ message: 'Error retrieving today\'s attendance', error: error.message });
+  }
+};
+
 module.exports = {
   checkIn,
   getAttendance,
-  getKaryawanReport
+  getKaryawanReport,
+  getTodayAttendance
 };

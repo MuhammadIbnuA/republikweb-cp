@@ -49,6 +49,7 @@ app.post('/karyawan/login', karyawanController.login); // tested
 app.post('/attendance/checkin', authenticateToken, attendanceController.checkIn); // tested
 app.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController.getAttendance); // tested
 app.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
+app.get('/attendance-today/:karyawanId', authenticateToken, attendanceController.getTodayAttendance) 
 app.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
   
 // project 
