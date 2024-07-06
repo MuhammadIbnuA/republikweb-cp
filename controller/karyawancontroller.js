@@ -141,6 +141,7 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Cari pengguna berdasarkan email
     const snapshot = await db.collection('karyawan').where('email', '==', email).get();
     if (snapshot.empty) {
       return res.status(400).json({ error: 'User with this email does not exist' });
@@ -149,18 +150,23 @@ const requestPasswordReset = async (req, res) => {
     let user;
     snapshot.forEach(doc => {
       user = doc.data();
-      user.id = doc.id; // Store document ID to update later
+      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
     });
 
-    const otp = crypto.randomBytes(3).toString('hex');
+    // Generate OTP dalam bentuk mentah
+    const otp = crypto.randomBytes(3).toString('hex'); // Contoh OTP: "f5e3d8"
+    // Hash OTP sebelum menyimpannya
     const otpHash = await bcrypt.hash(otp, 10);
-    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+    // Set waktu kedaluwarsa OTP (1 menit dari sekarang)
+    const otpExpiry = Date.now() + 5 * 60 * 1000;
 
+    // Hapus OTP lama jika ada
     await db.collection('karyawan').doc(user.id).update({
       resetpasswordtoken: otpHash,
       otpExpiry: otpExpiry,
     });
 
+    // Kirim OTP mentah ke email pengguna
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -173,49 +179,74 @@ const requestPasswordReset = async (req, res) => {
       from: process.env.EMAIL,
       to: user.email,
       subject: 'Password Reset OTP',
-      text: `Your OTP for password reset is: ${otp}. It will expire in 5 minutes.`,
+      text: `Your new OTP for password reset is: ${otp}. It will expire in 5 minute.`,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.json({ message: 'OTP sent to email' });
+    res.json({ message: 'New OTP sent to email' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-
-const resetPassword = async (req, res) => {
+const validateOtp = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { otp } = req.body;
 
-    const snapshot = await db.collection('karyawan').where('email', '==', email).get();
+    // Cari pengguna berdasarkan OTP hash
+    const snapshot = await db.collection('karyawan').where('resetpasswordtoken', '!=', '').get();
     if (snapshot.empty) {
-      return res.status(400).json({ error: 'User with this email does not exist' });
+      return res.status(400).json({ error: 'No users with a reset OTP found' });
     }
 
     let user;
     snapshot.forEach(doc => {
       user = doc.data();
-      user.id = doc.id; // Store document ID to update later
+      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
     });
 
+    // Periksa apakah OTP masih berlaku
     if (!user.otpExpiry || user.otpExpiry < Date.now()) {
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
 
+    // Verifikasi OTP dengan hash yang ada di database
     const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
     if (!isOtpValid) {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.resetpasswordtoken = '';
-    user.otpExpiry = null;
+    // Jika OTP valid, beri tahu pengguna
+    res.json({ message: 'OTP is valid', userId: user.id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
 
-    await db.collection('karyawan').doc(user.id).update({
-      password: user.password,
+const resetPassword = async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    // Cari pengguna berdasarkan ID pengguna
+    const snapshot = await db.collection('karyawan').doc(userId).get();
+    if (!snapshot.exists) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const user = snapshot.data();
+
+    // Periksa apakah OTP sudah kadaluarsa
+    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Hash kata sandi baru dan pembaruan data pengguna
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.collection('karyawan').doc(userId).update({
+      password: hashedPassword,
       resetpasswordtoken: '',
       otpExpiry: null,
     });
@@ -271,6 +302,7 @@ module.exports = {
   createKaryawan,
   login,
   requestPasswordReset,
+  validateOtp,
   resetPassword,
   getKaryawanById
 };
