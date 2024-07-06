@@ -76,13 +76,7 @@ const checkIn = async (req, res) => {
           }
           attendanceData.checkInTimes.resume = now.format();
       } else if (type === 'end') {
-          const shiftEndTime = endTime.clone().subtract(attendanceData.timeDebt, 'minutes');
-          if (now.isBefore(shiftEndTime)) {
-              attendanceData.checkInTimes.end = shiftEndTime.format(); // Ensure end time is the end of the shift
-          } else {
-              attendanceData.checkInTimes.end = now.format();
-          }
-          attendanceData.timeDebt = Math.max(0, attendanceData.timeDebt - now.diff(endTime, 'minutes'));
+          attendanceData.checkInTimes.end = now.format();
       } else if (type === 'break') {
           attendanceData.checkInTimes.break = now.format();
       } else {
