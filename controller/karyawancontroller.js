@@ -189,42 +189,10 @@ const validateOtp = async (req, res) => {
   try {
     const { otp } = req.body;
 
-    // Misalkan Anda menggunakan ID sesi untuk mencari OTP, yang disimpan saat OTP dibuat
-    // Anda perlu menyimpan ID sesi atau ID pengguna ketika OTP dibuat dan menggunakannya di sini
-
-    // Misalnya, ambil OTP aktif dari database (sesuai dengan ID pengguna atau ID sesi yang disimpan)
-    const snapshot = await db.collection('otp_sessions').where('otp', '==', otp).get();
+    // Cari pengguna berdasarkan OTP
+    const snapshot = await db.collection('karyawan').where('resetpasswordtoken', '==', otp).get();
     if (snapshot.empty) {
       return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
-    let session;
-    snapshot.forEach(doc => {
-      session = doc.data();
-      session.id = doc.id; // Simpan ID dokumen jika perlu pembaruan nanti
-    });
-
-    // Periksa apakah OTP masih berlaku
-    if (!session.otpExpiry || session.otpExpiry < Date.now()) {
-      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-    }
-
-    // OTP valid
-    res.json({ message: 'OTP is valid' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-const resetPassword = async (req, res) => {
-  try {
-    const { email, newPassword } = req.body;
-
-    // Cari pengguna berdasarkan email
-    const snapshot = await db.collection('karyawan').where('email', '==', email).get();
-    if (snapshot.empty) {
-      return res.status(400).json({ error: 'User with this email does not exist' });
     }
 
     let user;
@@ -233,18 +201,41 @@ const resetPassword = async (req, res) => {
       user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
     });
 
+    // Verifikasi apakah OTP masih berlaku
+    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Jika OTP valid, beri tahu pengguna
+    res.json({ message: 'OTP is valid', userId: user.id });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+
+const resetPassword = async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    // Cari pengguna berdasarkan ID pengguna
+    const snapshot = await db.collection('karyawan').doc(userId).get();
+    if (!snapshot.exists) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const user = snapshot.data();
+
     // Periksa apakah OTP sudah kadaluarsa
     if (!user.otpExpiry || user.otpExpiry < Date.now()) {
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
 
     // Hash kata sandi baru dan pembaruan data pengguna
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.resetpasswordtoken = '';
-    user.otpExpiry = null;
-
-    await db.collection('karyawan').doc(user.id).update({
-      password: user.password,
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.collection('karyawan').doc(userId).update({
+      password: hashedPassword,
       resetpasswordtoken: '',
       otpExpiry: null,
     });
@@ -255,6 +246,7 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 
 const getKaryawanById = async (req, res) => {
   try {
