@@ -179,7 +179,7 @@ const requestPasswordReset = async (req, res) => {
       from: process.env.EMAIL,
       to: user.email,
       subject: 'Password Reset OTP',
-      text: `Your new OTP for password reset is: ${otp}. It will expire in 1 minute.`,
+      text: `Your new OTP for password reset is: ${otp}. It will expire in 5 minute.`,
     };
 
     await transporter.sendMail(mailOptions);
