@@ -4,32 +4,12 @@ const moment = require('moment');
 
 const addActivityLog = async (req, res) => {
   try {
-    const { projectname, activity_name, description } = req.body;
+    const { description } = req.body;
 
     // Decode the token to get the karyawanId (or username)
     const token = req.headers.authorization.split(' ')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const karyawanId = decodedToken.karyawanId;
-
-    // Query the project collection to find the projectId based on the project name
-    const projectSnapshot = await db.collection('projects').where('projectname', '==', projectname).get();
-
-    if (projectSnapshot.empty) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-
-    let projectId;
-    let projectDoc;
-
-    projectSnapshot.forEach(doc => {
-      projectId = doc.id;
-      projectDoc = doc.data();
-    });
-
-    // Check if the karyawan is a member of the project
-    if (!projectDoc.members.includes(karyawanId)) {
-      return res.status(403).json({ message: 'You are not a member of this project' });
-    }
 
     const now = moment().format('YYYYMMDDHHmmss');
     const activitylogid = `${karyawanId}-${now}`;
@@ -38,12 +18,9 @@ const addActivityLog = async (req, res) => {
 
     const activityLogData = {
       activitylogid,
-      activity_name,
       date,
       description,
-      status,
-      projectId,
-      projectname // Include projectname in the activity log
+      status
     };
 
     const activityLogRef = db.collection('karyawan').doc(karyawanId).collection('activity_logs').doc(activitylogid);
@@ -81,27 +58,7 @@ const getActivityLogs = async (req, res) => {
 const editActivityLog = async (req, res) => {
   try {
     const { karyawanId, activitylogid } = req.params;
-    const { activity_name, description, status, projectname } = req.body;
-
-    // Query the project collection to find the projectId based on the project name
-    const projectSnapshot = await db.collection('projects').where('projectname', '==', projectname).get();
-
-    if (projectSnapshot.empty) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-
-    let projectId;
-    let projectDoc;
-
-    projectSnapshot.forEach(doc => {
-      projectId = doc.id;
-      projectDoc = doc.data();
-    });
-
-    // Check if the karyawan is a member of the project
-    if (!projectDoc.members.includes(karyawanId)) {
-      return res.status(403).json({ message: 'You are not a member of this project' });
-    }
+    const { description, status } = req.body;
 
     const activityLogRef = db.collection('karyawan').doc(karyawanId).collection('activity_logs').doc(activitylogid);
     const activityLogDoc = await activityLogRef.get();
@@ -111,10 +68,8 @@ const editActivityLog = async (req, res) => {
     }
 
     const updatedData = {
-      ...(activity_name && { activity_name }),
       ...(description && { description }),
-      ...(status && { status }),
-      ...(projectId && { projectId })
+      ...(status && { status })
     };
 
     await activityLogRef.update(updatedData);
@@ -196,7 +151,6 @@ const getActivityLogsByDate = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving activity logs by date', error: error.message });
   }
 };
-
 
 module.exports = {
   addActivityLog,
