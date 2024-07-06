@@ -158,7 +158,7 @@ const requestPasswordReset = async (req, res) => {
     // Hash OTP sebelum menyimpannya
     const otpHash = await bcrypt.hash(otp, 10);
     // Set waktu kedaluwarsa OTP (1 menit dari sekarang)
-    const otpExpiry = Date.now() + 1 * 60 * 1000;
+    const otpExpiry = Date.now() + 5 * 60 * 1000;
 
     // Hapus OTP lama jika ada
     await db.collection('karyawan').doc(user.id).update({
