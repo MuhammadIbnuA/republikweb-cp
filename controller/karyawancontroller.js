@@ -187,32 +187,29 @@ const requestPasswordReset = async (req, res) => {
 
 const validateOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { otp } = req.body;
 
-    // Cari pengguna berdasarkan email
-    const snapshot = await db.collection('karyawan').where('email', '==', email).get();
+    // Misalkan Anda menggunakan ID sesi untuk mencari OTP, yang disimpan saat OTP dibuat
+    // Anda perlu menyimpan ID sesi atau ID pengguna ketika OTP dibuat dan menggunakannya di sini
+
+    // Misalnya, ambil OTP aktif dari database (sesuai dengan ID pengguna atau ID sesi yang disimpan)
+    const snapshot = await db.collection('otp_sessions').where('otp', '==', otp).get();
     if (snapshot.empty) {
-      return res.status(400).json({ error: 'User with this email does not exist' });
-    }
-
-    let user;
-    snapshot.forEach(doc => {
-      user = doc.data();
-      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
-    });
-
-    // Periksa apakah OTP masih berlaku
-    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
-      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-    }
-
-    // Verifikasi OTP
-    const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
-    if (!isOtpValid) {
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
-    // Jika OTP valid, beritahu pengguna
+    let session;
+    snapshot.forEach(doc => {
+      session = doc.data();
+      session.id = doc.id; // Simpan ID dokumen jika perlu pembaruan nanti
+    });
+
+    // Periksa apakah OTP masih berlaku
+    if (!session.otpExpiry || session.otpExpiry < Date.now()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // OTP valid
     res.json({ message: 'OTP is valid' });
   } catch (error) {
     console.error(error);
