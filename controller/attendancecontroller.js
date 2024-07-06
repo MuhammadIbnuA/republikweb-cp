@@ -3,7 +3,7 @@ const moment = require('moment');
 
 const checkIn = async (req, res) => {
   try {
-      const { type } = req.body; // type can be 'start', 'resume', 'end'
+      const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
       const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
       const now = moment();
 
@@ -76,14 +76,12 @@ const checkIn = async (req, res) => {
           }
           attendanceData.checkInTimes.resume = now.format();
       } else if (type === 'end') {
-          if (now.isAfter(endTime)) {
-              return res.status(400).json({ message: 'End time already passed' });
-          }
           const shiftEndTime = endTime.clone().subtract(attendanceData.timeDebt, 'minutes');
           if (now.isBefore(shiftEndTime)) {
-              return res.status(400).json({ message: 'End time before shift end' });
+              attendanceData.checkInTimes.end = shiftEndTime.format(); // Ensure end time is the end of the shift
+          } else {
+              attendanceData.checkInTimes.end = now.format();
           }
-          attendanceData.checkInTimes.end = now.format();
           attendanceData.timeDebt = Math.max(0, attendanceData.timeDebt - now.diff(endTime, 'minutes'));
       } else if (type === 'break') {
           attendanceData.checkInTimes.break = now.format();
@@ -98,7 +96,6 @@ const checkIn = async (req, res) => {
       res.status(500).json({ message: 'Error checking in', error: error.message });
   }
 };
-
 
 // Function to get attendance by karyawan and date
 const getAttendance = async (req, res) => {
