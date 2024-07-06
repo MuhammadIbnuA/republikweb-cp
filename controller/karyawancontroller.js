@@ -226,6 +226,60 @@ const validateOtp = async (req, res) => {
   }
 };
 
+const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Cari pengguna berdasarkan email
+    const snapshot = await db.collection('karyawan').where('email', '==', email).get();
+    if (snapshot.empty) {
+      return res.status(400).json({ error: 'User with this email does not exist' });
+    }
+
+    let user;
+    snapshot.forEach(doc => {
+      user = doc.data();
+      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
+    });
+
+    // Generate OTP dalam bentuk mentah
+    const otp = crypto.randomBytes(3).toString('hex'); // Contoh OTP: "f5e3d8"
+    // Hash OTP sebelum menyimpannya
+    const otpHash = await bcrypt.hash(otp, 10);
+    // Set waktu kedaluwarsa OTP (1 menit dari sekarang)
+    const otpExpiry = Date.now() + 1 * 60 * 1000;
+
+    // Hapus OTP lama dan simpan OTP baru
+    await db.collection('karyawan').doc(user.id).update({
+      resetpasswordtoken: otpHash,
+      otpExpiry: otpExpiry,
+    });
+
+    // Kirim OTP mentah ke email pengguna
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: user.email,
+      subject: 'Password Reset OTP',
+      text: `Your new OTP for password reset is: ${otp}. It will expire in 1 minute.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ message: 'New OTP sent to email' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 const resetPassword = async (req, res) => {
   try {
     const { userId, newPassword } = req.body;
@@ -257,7 +311,6 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
 
 const getKaryawanById = async (req, res) => {
   try {
@@ -303,6 +356,7 @@ module.exports = {
   login,
   requestPasswordReset,
   validateOtp,
+  resendOtp,
   resetPassword,
   getKaryawanById
 };
