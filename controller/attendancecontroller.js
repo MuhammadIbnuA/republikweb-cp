@@ -506,6 +506,19 @@ const getRecentActivities = async (req, res) => {
 
       if (checkInTimes) {
         karyawanIdSet.add(data.karyawanId);
+        // Add activities with timestamps
+        if (checkInTimes.start) {
+          activities.push({ type: 'Masuk', karyawanId: data.karyawanId, timestamp: checkInTimes.start });
+        }
+        if (checkInTimes.resume) {
+          activities.push({ type: 'Istirahat', karyawanId: data.karyawanId, timestamp: checkInTimes.resume });
+        }
+        if (checkInTimes.end) {
+          activities.push({ type: 'Kembali', karyawanId: data.karyawanId, timestamp: checkInTimes.end });
+        }
+        if (checkInTimes.break) {
+          activities.push({ type: 'Pulang', karyawanId: data.karyawanId, timestamp: checkInTimes.break });
+        }
       }
     });
 
@@ -519,33 +532,20 @@ const getRecentActivities = async (req, res) => {
       }
     });
 
-    // Prepare activities with fullnames
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const karyawanId = data.karyawanId;
-      const fullname = karyawanMap.get(karyawanId) || 'Unknown';
-
-      const checkInTimes = data.checkInTimes;
-
-      const formattedTimes = {
-        start: checkInTimes.start ? `${fullname} Masuk ${moment(checkInTimes.start).fromNow()}` : null,
-        resume: checkInTimes.resume ? `${fullname} Istirahat ${moment(checkInTimes.resume).fromNow()}` : null,
-        end: checkInTimes.end ? `${fullname} Kembali ${moment(checkInTimes.end).fromNow()}` : null,
-        break: checkInTimes.break ? `${fullname} Pulang ${moment(checkInTimes.break).fromNow()}` : null,
+    // Format activities with fullnames and sort by timestamp
+    const formattedActivities = activities.map(activity => {
+      const fullname = karyawanMap.get(activity.karyawanId) || 'Unknown';
+      return {
+        type: activity.type,
+        activity: `${fullname} ${activity.type} ${moment(activity.timestamp).fromNow()}`,
+        timestamp: activity.timestamp
       };
-
-      // Collect all non-null activities
-      for (const [key, value] of Object.entries(formattedTimes)) {
-        if (value) {
-          activities.push({ type: key, activity: value });
-        }
-      }
     });
 
-    // Sort activities by time in descending order
-    activities.sort((a, b) => moment(b.activity.split(' ')[2]).unix() - moment(a.activity.split(' ')[2]).unix());
+    // Sort activities by timestamp in descending order
+    formattedActivities.sort((a, b) => moment(b.timestamp).unix() - moment(a.timestamp).unix());
 
-    res.status(200).json(activities);
+    res.status(200).json(formattedActivities);
   } catch (error) {
     console.error('Error retrieving recent activities:', error);
     res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
