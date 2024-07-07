@@ -40,6 +40,7 @@ app.post('/karyawan/register', upload.fields([
   { name: 'profile_photo', maxCount: 1 },
   { name: 'barcode', maxCount: 1 }
 ]), karyawanController.createKaryawan); // tested
+app.get('/karyawan', karyawanController.getAllKaryawan); // tested
 app.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
 app.put('/karyawan/:id', authenticateToken, IsAdmin, karyawanController.updateKaryawan); // Only admins can update
 app.get('/karyawan/:id/barcode', authenticateToken, karyawanController.getBarcodeUrlById);

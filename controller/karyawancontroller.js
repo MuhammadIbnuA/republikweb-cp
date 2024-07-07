@@ -323,6 +323,34 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getAllKaryawan = async (req, res) => {
+  try {
+    // Referensi ke koleksi karyawan
+    const karyawanRef = db.collection('karyawan');
+
+    // Ambil semua dokumen dari koleksi
+    const snapshot = await karyawanRef.get();
+
+    // Jika koleksi kosong
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No karyawan found' });
+    }
+
+    // Inisialisasi array untuk menyimpan data karyawan
+    let karyawanList = [];
+
+    // Loop melalui snapshot dan kumpulkan data
+    snapshot.forEach(doc => {
+      karyawanList.push(doc.data());
+    });
+
+    // Kirim data karyawan sebagai respons
+    res.status(200).json(karyawanList);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error retrieving karyawan', error: error.message });
+  }
+};
 
 const getKaryawanById = async (req, res) => {
   try {
@@ -369,5 +397,6 @@ module.exports = {
   requestPasswordReset,
   validateOtp,
   resetPassword,
+  getAllKaryawan,
   getKaryawanById
 };
