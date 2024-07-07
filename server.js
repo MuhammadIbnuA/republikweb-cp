@@ -62,7 +62,7 @@ app.put('/kehadiran/change', authenticateToken, IsAdmin, attendanceController.ch
 // New routes
 app.get('/kehadiran/today', authenticateToken, attendanceController.getAllKehadiranOnDate);
 app.get('/kehadiran/:startDate/:endDate', authenticateToken, attendanceController.getAllKehadiranBetweenDates);
-
+app.get('/kehadiran/recent-activities', attendanceController.getRecentActivities);
   
 // project 
 app.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested

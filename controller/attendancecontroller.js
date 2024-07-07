@@ -482,6 +482,50 @@ const getAllKehadiranBetweenDates = async (req, res) => {
   }
 };
 
+const getRecentActivities = async (req, res) => {
+  try {
+    const now = moment();
+    const snapshot = await db.collection('attendance').get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No attendance records found' });
+    }
+
+    const activities = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const karyawanId = data.karyawanId;
+      const checkInTimes = data.checkInTimes;
+      
+      const activityDetails = [
+        { type: 'start', time: checkInTimes.start },
+        { type: 'break', time: checkInTimes.break },
+        { type: 'resume', time: checkInTimes.resume },
+        { type: 'end', time: checkInTimes.end },
+      ];
+
+      activityDetails.forEach(activity => {
+        if (activity.time) {
+          const timeAgo = moment(activity.time).fromNow();
+          activities.push({
+            karyawanId,
+            type: activity.type,
+            time: activity.time,
+            timeAgo,
+          });
+        }
+      });
+    });
+
+    activities.sort((a, b) => new Date(b.time) - new Date(a.time)); // Sort by most recent activity
+
+    res.status(200).json(activities);
+  } catch (error) {
+    console.error('Error retrieving recent activities:', error);
+    res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
+  }
+};
+
 
 module.exports = {
   checkIn,
@@ -494,5 +538,6 @@ module.exports = {
   getKehadiranOnDate,
   changeKehadiranOnDate,
   getAllKehadiranOnDate,
-  getAllKehadiranBetweenDates // Add the new function to the module exports
+  getAllKehadiranBetweenDates, // Add the new function to the module exports
+  getRecentActivities
 };
