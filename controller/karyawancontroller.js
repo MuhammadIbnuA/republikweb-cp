@@ -128,6 +128,31 @@ const updateKaryawan = async (req, res) => {
   }
 };
 
+const getBarcodeUrlById = async (req, res) => {
+  try {
+    const { id } = req.params; // Get karyawan ID from route parameters
+
+    // Reference to the karyawan document with the specific ID
+    const karyawanRef = db.collection('karyawan').doc(id);
+    const snapshot = await karyawanRef.get();
+
+    if (!snapshot.exists) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
+
+    const karyawanData = snapshot.data();
+    if (!karyawanData.barcode_url) {
+      return res.status(404).json({ message: 'Barcode URL not found for this karyawan' });
+    }
+
+    // Return the barcode URL
+    res.status(200).json({ barcode_url: karyawanData.barcode_url });
+  } catch (error) {
+    console.error('Error retrieving barcode URL:', error);
+    res.status(500).json({ message: 'Error retrieving barcode URL', error: error.message });
+  }
+};
+
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -332,6 +357,7 @@ const getKaryawanById = async (req, res) => {
 module.exports = {
   createKaryawan,
   updateKaryawan,
+  getBarcodeUrlById,
   login,
   requestPasswordReset,
   validateOtp,
