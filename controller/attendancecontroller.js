@@ -307,25 +307,11 @@ const getShiftDetails = async (req, res) => {
         return;
       }
 
-      const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
-      
-      let startTime, endTime;
-      if (shift === 'pagi') {
-        startTime = '09:00';
-        endTime = '17:00';
-      } else if (shift === 'siang') {
-        startTime = '13:00';
-        endTime = '21:00';
-      } else {
-        startTime = 'Unknown';
-        endTime = 'Unknown';
-      }
-
       shiftDetails.push({
         fullname: karyawanData.fullname,
         shift: karyawanData.shift,
-        jam_masuk: startTime,
-        jam_pulang: endTime
+        jam_masuk: karyawanData.jam_masuk,
+        jam_pulang: karyawanData.jam_pulang
       });
     });
 
