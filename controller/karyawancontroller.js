@@ -45,11 +45,11 @@ async function createKaryawan(req, res) {
 
     // Default shift times
     const shiftDefaults = {
-      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
-      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+      Pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+      Siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
     };
 
-    const shift = req.body.shift || 'pagi'; // default to pagi
+    const shift = req.body.shift || 'Pagi'; // default to pagi
     const { jam_masuk, jam_pulang } = req.body;
 
     const karyawanData = {
