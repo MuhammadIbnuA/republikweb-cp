@@ -339,15 +339,26 @@ const updateShiftDetails = async (req, res) => {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
+    // Default shift times
+    const shiftDefaults = {
+      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+    };
+
     // Create an object to store the fields to update
     const updateData = { shift };
 
-    // Only add jam_masuk and jam_pulang to updateData if they are provided
+    // Only add jam_masuk and jam_pulang to updateData if they are provided, otherwise use defaults
     if (jam_masuk !== undefined) {
       updateData.jam_masuk = jam_masuk;
+    } else {
+      updateData.jam_masuk = shiftDefaults[shift].jam_masuk;
     }
+
     if (jam_pulang !== undefined) {
       updateData.jam_pulang = jam_pulang;
+    } else {
+      updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
     }
 
     // Update shift details
