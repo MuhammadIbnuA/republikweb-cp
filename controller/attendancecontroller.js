@@ -380,17 +380,16 @@ const updateMultipleShiftDetails = async (req, res) => {
       return res.status(400).json({ message: 'Invalid input format' });
     }
 
+    const validShifts = ['pagi', 'siang'];
     const batch = db.batch();
-    const karyawanRefs = [];
 
     updates.forEach(({ karyawanId, shift, jam_masuk, jam_pulang }) => {
-      const validShifts = ['pagi', 'siang'];
+      // Validate shift
       if (!validShifts.includes(shift)) {
         return res.status(400).json({ message: `Invalid shift: ${shift}` });
       }
 
       const karyawanRef = db.collection('karyawan').doc(karyawanId);
-      karyawanRefs.push(karyawanRef);
 
       // Default shift times
       const shiftDefaults = {
@@ -401,18 +400,9 @@ const updateMultipleShiftDetails = async (req, res) => {
       // Create an object to store the fields to update
       const updateData = { shift };
 
-      // Only add jam_masuk and jam_pulang to updateData if they are provided, otherwise use defaults
-      if (jam_masuk !== undefined) {
-        updateData.jam_masuk = jam_masuk;
-      } else {
-        updateData.jam_masuk = shiftDefaults[shift].jam_masuk;
-      }
-
-      if (jam_pulang !== undefined) {
-        updateData.jam_pulang = jam_pulang;
-      } else {
-        updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
-      }
+      // Add default times if not provided
+      updateData.jam_masuk = jam_masuk || shiftDefaults[shift].jam_masuk;
+      updateData.jam_pulang = jam_pulang || shiftDefaults[shift].jam_pulang;
 
       batch.update(karyawanRef, updateData);
     });
