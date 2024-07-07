@@ -290,13 +290,7 @@ const getTodayAttendance = async (req, res) => {
 
 const getShiftDetails = async (req, res) => {
   try {
-    const { isAdmin } = req.query; // Check if user is an admin from the query parameter
     const karyawanCollection = db.collection('karyawan');
-    
-    // Check if isAdmin is true
-    if (isAdmin === 'true') {
-      return res.status(403).json({ message: 'Access denied for admins' });
-    }
     
     // Fetch all karyawan documents
     const snapshot = await karyawanCollection.get();
@@ -307,6 +301,12 @@ const getShiftDetails = async (req, res) => {
     const shiftDetails = [];
     snapshot.forEach(doc => {
       const karyawanData = doc.data();
+
+      // Skip karyawan with isAdmin = true
+      if (karyawanData.isAdmin) {
+        return;
+      }
+
       const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
       
       let startTime, endTime;
