@@ -95,7 +95,38 @@ async function createKaryawan(req, res) {
   }
 };
 
+// Update Karyawan details
+const updateKaryawan = async (req, res) => {
+  try {
+    const { id } = req.params; // Get karyawan ID from route parameters
+    const updatedData = req.body; // Data to update
 
+    // Ensure only fields that exist in the schema are updated
+    const allowedFields = [
+      'fullname', 'username', 'email', 'profile_photo_url', 'NIP', 
+      'phoneNumber', 'division', 'shift', 'tanggal_lahir', 'pendidikan_terakhir',
+      'tempat_lahir', 'tanggal_masuk', 'tanggal_keluar', 'OS', 'Browser',
+      'lokasi_kantor', 'barcode_url'
+    ];
+
+    // Filter the fields to update based on the allowed fields
+    const filteredData = {};
+    for (const key in updatedData) {
+      if (allowedFields.includes(key)) {
+        filteredData[key] = updatedData[key] === '' ? null : updatedData[key]; // Allow null values
+      }
+    }
+
+    // Update the karyawan document
+    const karyawanRef = db.collection('karyawan').doc(id);
+    await karyawanRef.update(filteredData);
+
+    res.status(200).json({ message: 'Karyawan updated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating karyawan', error: error.message });
+  }
+};
 
 const login = async (req, res) => {
   try {
@@ -300,6 +331,7 @@ const getKaryawanById = async (req, res) => {
 
 module.exports = {
   createKaryawan,
+  updateKaryawan,
   login,
   requestPasswordReset,
   validateOtp,
