@@ -371,6 +371,49 @@ const updateShiftDetails = async (req, res) => {
   }
 };
 
+const updateMultipleShiftDetails = async (req, res) => {
+  try {
+    const { karyawanUpdates } = req.body; // Array of karyawan updates
+
+    const validShifts = ['pagi', 'siang'];
+    const shiftDefaults = {
+      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+    };
+
+    const batch = db.batch();
+
+    for (const karyawanUpdate of karyawanUpdates) {
+      const { karyawanId, shift, jam_masuk, jam_pulang } = karyawanUpdate;
+
+      if (!validShifts.includes(shift)) {
+        return res.status(400).json({ message: `Invalid shift for karyawan with ID ${karyawanId}` });
+      }
+
+      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+      const karyawanDoc = await karyawanRef.get();
+
+      if (!karyawanDoc.exists) {
+        return res.status(404).json({ message: `Karyawan with ID ${karyawanId} not found` });
+      }
+
+      const updateData = { shift };
+
+      updateData.jam_masuk = jam_masuk !== undefined ? jam_masuk : shiftDefaults[shift].jam_masuk;
+      updateData.jam_pulang = jam_pulang !== undefined ? jam_pulang : shiftDefaults[shift].jam_pulang;
+
+      batch.update(karyawanRef, updateData);
+    }
+
+    await batch.commit();
+
+    res.status(200).json({ message: 'Shift details updated successfully' });
+  } catch (error) {
+    console.error('Error updating multiple shift details:', error);
+    res.status(500).json({ message: 'Error updating multiple shift details', error: error.message });
+  }
+};
+
 // Function to get kehadiran log by karyawan ID
 const getKehadiranLogByKaryawanId = async (req, res) => {
   try {
@@ -614,6 +657,7 @@ module.exports = {
   getTodayAttendance,
   getShiftDetails,
   updateShiftDetails,
+  updateMultipleShiftDetails,
   getKehadiranLogByKaryawanId,
   getKehadiranBetweenDates,
   getKehadiranOnDate,
