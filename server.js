@@ -52,6 +52,7 @@ app.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController
 app.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
 app.get('/attendance-today/:karyawanId', authenticateToken, attendanceController.getTodayAttendance) 
 app.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
+app.get('/shift-details/:karyawanId', authenticateToken, attendanceController.getShiftDetails); // tested
   
 // project 
 app.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested

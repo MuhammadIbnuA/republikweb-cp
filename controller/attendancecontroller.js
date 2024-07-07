@@ -177,10 +177,46 @@ const getTodayAttendance = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving today\'s attendance', error: error.message });
   }
 };
+// Function to get karyawan full name, jam masuk, and jam pulang based on shift
+const getShiftDetails = async (req, res) => {
+  try {
+    const { karyawanId } = req.params;
+    const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
+    if (!karyawanDoc.exists) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
+
+    const karyawanData = karyawanDoc.data();
+    const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
+
+    let startTime, endTime;
+    if (shift === 'pagi') {
+      startTime = '09:00';
+      endTime = '17:00';
+    } else if (shift === 'siang') {
+      startTime = '13:00';
+      endTime = '21:00';
+    } else {
+      return res.status(400).json({ message: 'Invalid shift' });
+    }
+
+    const response = {
+      fullname: karyawanData.fullname,
+      jam_masuk: startTime,
+      jam_pulang: endTime
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error retrieving shift details:', error);
+    res.status(500).json({ message: 'Error retrieving shift details', error: error.message });
+  }
+};
 
 module.exports = {
   checkIn,
   getAttendance,
   getKaryawanReport,
-  getTodayAttendance
+  getTodayAttendance,
+  getShiftDetails // Add the new function to the module exports
 };
