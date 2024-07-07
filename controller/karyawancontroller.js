@@ -6,15 +6,6 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path'); 
 
-const { db, bucket } = require('../firebase');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
-const path = require('path'); 
-const { Timestamp } = require('firebase-admin/firestore'); // Pastikan untuk mengimpor Timestamp
-
 async function createKaryawan(req, res) {
   try {
     const karyawanId = uuidv4();
@@ -61,12 +52,6 @@ async function createKaryawan(req, res) {
     const shift = req.body.shift || 'pagi'; // default to pagi
     const { jam_masuk, jam_pulang } = req.body;
 
-    // Helper function to convert time string to Timestamp or return null
-    const convertToTimestamp = (timeString) => {
-      if (!timeString) return null;
-      return Timestamp.fromDate(new Date(`1970-01-01T${timeString}:00Z`));
-    };
-
     const karyawanData = {
       karyawan_id: karyawanId,
       fullname: req.body.fullname,
@@ -79,8 +64,8 @@ async function createKaryawan(req, res) {
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
       shift: shift,
-      jam_masuk: convertToTimestamp(jam_masuk) || convertToTimestamp(shiftDefaults[shift].jam_masuk),
-      jam_pulang: convertToTimestamp(jam_pulang) || convertToTimestamp(shiftDefaults[shift].jam_pulang),
+      jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_masuk}:00Z`)),
+      jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_pulang}:00Z`)),
       tanggal_lahir: req.body.tanggal_lahir,
       isAdmin: false,
       pendidikan_terakhir: req.body.pendidikan_terakhir,
