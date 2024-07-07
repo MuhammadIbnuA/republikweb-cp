@@ -373,52 +373,53 @@ const updateShiftDetails = async (req, res) => {
 
 const updateMultipleShiftDetails = async (req, res) => {
   try {
-    const { updates } = req.body; // updates is an array of objects like [{ karyawanId: '...', shift: 'pagi', jam_masuk: '09:00', jam_pulang: '17:00' }, ...]
+    const shiftUpdates = req.body; // Expecting an array of shift updates
 
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ message: 'No update data provided' });
+    if (!Array.isArray(shiftUpdates) || shiftUpdates.length === 0) {
+      return res.status(400).json({ message: 'Invalid input: Expected an array of shift updates' });
     }
 
-    // Iterate over the updates array and update each karyawan document
-    const batch = db.batch();
     const validShifts = ['pagi', 'siang'];
+    const shiftDefaults = {
+      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+    };
 
-    for (const update of updates) {
+    // Process each shift update
+    for (const update of shiftUpdates) {
       const { karyawanId, shift, jam_masuk, jam_pulang } = update;
 
       if (!validShifts.includes(shift)) {
-        return res.status(400).json({ message: `Invalid shift value: ${shift}` });
+        return res.status(400).json({ message: `Invalid shift for karyawanId ${karyawanId}` });
       }
 
-      // Fetch karyawan document
       const karyawanRef = db.collection('karyawan').doc(karyawanId);
       const karyawanDoc = await karyawanRef.get();
-
       if (!karyawanDoc.exists) {
-        return res.status(404).json({ message: `Karyawan not found for ID: ${karyawanId}` });
+        return res.status(404).json({ message: `Karyawan not found for karyawanId ${karyawanId}` });
       }
 
-      // Default shift times
-      const shiftDefaults = {
-        pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
-        siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
-      };
-
-      // Prepare update data
       const updateData = { shift };
 
-      // Update jam_masuk and jam_pulang
-      updateData.jam_masuk = jam_masuk !== undefined ? jam_masuk : shiftDefaults[shift].jam_masuk;
-      updateData.jam_pulang = jam_pulang !== undefined ? jam_pulang : shiftDefaults[shift].jam_pulang;
+      if (jam_masuk !== undefined) {
+        updateData.jam_masuk = jam_masuk;
+      } else {
+        updateData.jam_masuk = shiftDefaults[shift].jam_masuk;
+      }
 
-      batch.update(karyawanRef, updateData);
+      if (jam_pulang !== undefined) {
+        updateData.jam_pulang = jam_pulang;
+      } else {
+        updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
+      }
+
+      await karyawanRef.update(updateData);
     }
 
-    await batch.commit();
-    res.status(200).json({ message: 'Shifts updated successfully' });
+    res.status(200).json({ message: 'Shift details updated successfully for all employees' });
   } catch (error) {
-    console.error('Error updating shifts:', error);
-    res.status(500).json({ message: 'Error updating shifts', error: error.message });
+    console.error('Error updating shift details:', error);
+    res.status(500).json({ message: 'Error updating shift details', error: error.message });
   }
 };
 
