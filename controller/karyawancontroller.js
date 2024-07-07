@@ -61,6 +61,12 @@ async function createKaryawan(req, res) {
     const shift = req.body.shift || 'pagi'; // default to pagi
     const { jam_masuk, jam_pulang } = req.body;
 
+    // Helper function to convert time string to Timestamp or return null
+    const convertToTimestamp = (timeString) => {
+      if (!timeString) return null;
+      return Timestamp.fromDate(new Date(`1970-01-01T${timeString}:00Z`));
+    };
+
     const karyawanData = {
       karyawan_id: karyawanId,
       fullname: req.body.fullname,
@@ -73,8 +79,8 @@ async function createKaryawan(req, res) {
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
       shift: shift,
-      jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : null,
-      jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : null,
+      jam_masuk: convertToTimestamp(jam_masuk) || convertToTimestamp(shiftDefaults[shift].jam_masuk),
+      jam_pulang: convertToTimestamp(jam_pulang) || convertToTimestamp(shiftDefaults[shift].jam_pulang),
       tanggal_lahir: req.body.tanggal_lahir,
       isAdmin: false,
       pendidikan_terakhir: req.body.pendidikan_terakhir,
@@ -112,12 +118,6 @@ async function createKaryawan(req, res) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
   }
 }
-
-// Export functions as needed
-module.exports = {
-  createKaryawan,
-  // other functions
-};
 
 // Update Karyawan details
 const updateKaryawan = async (req, res) => {
