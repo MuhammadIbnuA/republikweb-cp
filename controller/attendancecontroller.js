@@ -136,12 +136,12 @@ const checkIn = async (req, res) => {
 
     // Adjust check-in times based on shift
     let startTime, endTime, breakStart, breakEnd;
-    if (shift === 'Pagi') {
+    if (shift === 'pagi') {
       startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
       endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
       breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
       breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
-    } else if (shift === 'Siang') {
+    } else if (shift === 'siang') {
       startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
       endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
       breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
@@ -310,10 +310,10 @@ const getShiftDetails = async (req, res) => {
       const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
       
       let startTime, endTime;
-      if (shift === 'Pagi') {
+      if (shift === 'pagi') {
         startTime = '09:00';
         endTime = '17:00';
-      } else if (shift === 'Siang') {
+      } else if (shift === 'siang') {
         startTime = '13:00';
         endTime = '21:00';
       } else {
@@ -341,7 +341,7 @@ const updateShiftDetails = async (req, res) => {
     const { karyawanId } = req.params;
     const { shift, jam_masuk, jam_pulang } = req.body;
 
-    const validShifts = ['Pagi', 'Siang'];
+    const validShifts = ['pagi', 'siang'];
     if (!validShifts.includes(shift)) {
       return res.status(400).json({ message: 'Invalid shift' });
     }
