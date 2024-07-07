@@ -337,24 +337,31 @@ const getShiftDetails = async (req, res) => {
 };
 
 const updateShiftDetails = async (req, res) => {
-  try {
-    const { karyawanId } = req.params;
-    const { shift, jam_masuk, jam_pulang } = req.body;
+  const { idKaryawan } = req.params; // Get the karyawan ID from the URL parameters
+  const { shift, jam_masuk, jam_pulang } = req.body; // Get the shift details from the request body
 
-    const validShifts = ['pagi', 'siang'];
-    if (!validShifts.includes(shift)) {
-      return res.status(400).json({ message: 'Invalid shift' });
+  try {
+    // Ensure that idKaryawan is provided
+    if (!idKaryawan) {
+      return res.status(400).json({ message: 'Karyawan ID is required' });
     }
 
-    // Fetch karyawan document
-    const karyawanRef = db.collection('karyawan').doc(karyawanId);
-    const karyawanDoc = await karyawanRef.get();
+    // Ensure that required fields are provided
+    if (!shift || !jam_masuk || !jam_pulang) {
+      return res.status(400).json({ message: 'Shift details are required' });
+    }
+
+    // Get the karyawan document by ID
+    const karyawanDocRef = db.collection('karyawan').doc(idKaryawan);
+    const karyawanDoc = await karyawanDocRef.get();
+
+    // Check if the document exists
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
-    // Update shift details
-    await karyawanRef.update({
+    // Update the karyawan document with new shift details
+    await karyawanDocRef.update({
       shift: shift,
       jam_masuk: jam_masuk,
       jam_pulang: jam_pulang
@@ -366,7 +373,6 @@ const updateShiftDetails = async (req, res) => {
     res.status(500).json({ message: 'Error updating shift details', error: error.message });
   }
 };
-
 
 // Function to get kehadiran log by karyawan ID
 const getKehadiranLogByKaryawanId = async (req, res) => {
