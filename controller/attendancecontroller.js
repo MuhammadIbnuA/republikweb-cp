@@ -322,6 +322,7 @@ const getShiftDetails = async (req, res) => {
       }
 
       shiftDetails.push({
+        idKaryawan: doc.id,  // Include the document ID (employee ID)
         fullname: karyawanData.fullname,
         shift: karyawanData.shift,
         jam_masuk: startTime,
