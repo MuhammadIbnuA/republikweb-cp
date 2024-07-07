@@ -373,19 +373,24 @@ const updateShiftDetails = async (req, res) => {
 
 const updateMultipleShiftDetails = async (req, res) => {
   try {
-    const { updates } = req.body; // updates should be an array of objects with karyawanId, shift, jam_masuk, jam_pulang
+    const updates = req.body; // Array of shift updates
 
+    // Validate input format
     if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ message: 'Invalid update data' });
+      return res.status(400).json({ message: 'Invalid input format' });
     }
 
     const batch = db.batch();
-    const validShifts = ['pagi', 'siang'];
+    const karyawanRefs = [];
 
     updates.forEach(({ karyawanId, shift, jam_masuk, jam_pulang }) => {
+      const validShifts = ['pagi', 'siang'];
       if (!validShifts.includes(shift)) {
-        return res.status(400).json({ message: 'Invalid shift' });
+        return res.status(400).json({ message: `Invalid shift: ${shift}` });
       }
+
+      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+      karyawanRefs.push(karyawanRef);
 
       // Default shift times
       const shiftDefaults = {
@@ -393,21 +398,30 @@ const updateMultipleShiftDetails = async (req, res) => {
         siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
       };
 
+      // Create an object to store the fields to update
       const updateData = { shift };
 
-      updateData.jam_masuk = jam_masuk !== undefined ? jam_masuk : shiftDefaults[shift].jam_masuk;
-      updateData.jam_pulang = jam_pulang !== undefined ? jam_pulang : shiftDefaults[shift].jam_pulang;
+      // Only add jam_masuk and jam_pulang to updateData if they are provided, otherwise use defaults
+      if (jam_masuk !== undefined) {
+        updateData.jam_masuk = jam_masuk;
+      } else {
+        updateData.jam_masuk = shiftDefaults[shift].jam_masuk;
+      }
 
-      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+      if (jam_pulang !== undefined) {
+        updateData.jam_pulang = jam_pulang;
+      } else {
+        updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
+      }
+
       batch.update(karyawanRef, updateData);
     });
 
     await batch.commit();
-
     res.status(200).json({ message: 'Shift details updated successfully' });
   } catch (error) {
-    console.error('Error updating shift details batch:', error);
-    res.status(500).json({ message: 'Error updating shift details batch', error: error.message });
+    console.error('Error updating shift details:', error);
+    res.status(500).json({ message: 'Error updating shift details', error: error.message });
   }
 };
 
