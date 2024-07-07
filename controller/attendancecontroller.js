@@ -485,44 +485,43 @@ const getAllKehadiranBetweenDates = async (req, res) => {
 const getRecentActivities = async (req, res) => {
   try {
     const now = moment();
-    const snapshot = await db.collection('attendance').orderBy('date', 'desc').limit(100).get(); // Adjust the limit as needed
+    const startOfDay = now.clone().startOf('day').format('YYYYMMDD');
+
+    // Fetch all attendance records from today
+    const snapshot = await db.collection('attendance')
+      .where('date', '==', now.format('YYYY-MM-DD'))
+      .get();
 
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No attendance records found' });
+      return res.status(404).json({ message: 'No attendance records found for today' });
     }
 
     const activities = [];
     snapshot.forEach(doc => {
       const data = doc.data();
       const karyawanId = data.karyawanId;
-      const date = moment(data.date);
+      const checkInTimes = data.checkInTimes;
 
-      // Add employee details
-      const employee = {
-        karyawanId: karyawanId,
-        fullname: data.fullname,
-        checkInTimes: data.checkInTimes,
-        timeDebt: data.timeDebt,
-        timestamp: date
+      // Calculate elapsed time for each check-in type
+      const formattedTimes = {
+        start: checkInTimes.start ? `${karyawanId} start ${moment(checkInTimes.start).fromNow()}` : null,
+        resume: checkInTimes.resume ? `${karyawanId} resume ${moment(checkInTimes.resume).fromNow()}` : null,
+        end: checkInTimes.end ? `${karyawanId} end ${moment(checkInTimes.end).fromNow()}` : null,
+        break: checkInTimes.break ? `${karyawanId} break ${moment(checkInTimes.break).fromNow()}` : null,
       };
 
-      activities.push(employee);
+      // Collect all non-null activities
+      for (const [key, value] of Object.entries(formattedTimes)) {
+        if (value) {
+          activities.push({ type: key, activity: value });
+        }
+      }
     });
 
-    // Sort activities by timestamp in descending order
-    activities.sort((a, b) => b.timestamp - a.timestamp);
+    // Sort activities by time in descending order
+    activities.sort((a, b) => moment(b.activity.split(' ')[1]).unix() - moment(a.activity.split(' ')[1]).unix());
 
-    // Format activities with elapsed time
-    const formattedActivities = activities.map(activity => {
-      const elapsed = moment.duration(now.diff(activity.timestamp)).humanize();
-      return {
-        fullname: activity.fullname,
-        checkInTimes: activity.checkInTimes,
-        elapsed: elapsed
-      };
-    });
-
-    res.status(200).json(formattedActivities);
+    res.status(200).json(activities);
   } catch (error) {
     console.error('Error retrieving recent activities:', error);
     res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
