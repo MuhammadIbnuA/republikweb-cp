@@ -95,7 +95,50 @@ async function createKaryawan(req, res) {
   }
 };
 
+async function updateAdminData(req, res) {
+  try {
+    const karyawanId = req.params.id;
+    const karyawanRef = db.collection('karyawan').doc(karyawanId);
 
+    // Check if the karyawan exists
+    const snapshot = await karyawanRef.get();
+    if (!snapshot.exists) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
+
+    // Update only the fields that are provided in the request body
+    const updatedData = {};
+    const fields = [
+      'fullname',
+      'username',
+      'email',
+      'phoneNumber',
+      'division',
+      'shift',
+      'tanggal_lahir',
+      'pendidikan_terakhir',
+      'tempat_lahir',
+      'tanggal_masuk',
+      'tanggal_keluar',
+      'OS',
+      'Browser',
+      'lokasi_kantor',
+      'isAdmin'
+    ];
+
+    fields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updatedData[field] = req.body[field];
+      }
+    });
+
+    // Update the karyawan document
+    await karyawanRef.update(updatedData);
+    res.status(200).json({ message: 'Karyawan data updated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating karyawan', error: error.message });
+  }
+}
 
 const login = async (req, res) => {
   try {
