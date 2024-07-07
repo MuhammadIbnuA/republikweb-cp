@@ -89,6 +89,7 @@ async function createKaryawan(req, res) {
       tanggal_keluar: req.body.tanggal_keluar,
       OS: req.body.OS,
       Browser: req.body.Browser,
+      lokasi_kantor: req.body.lokasi_kantor,
       barcode_url: '' // Placeholder for the barcode image URL
     };
 
