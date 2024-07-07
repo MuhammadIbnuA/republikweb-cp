@@ -530,16 +530,16 @@ const getRecentActivities = async (req, res) => {
       // Add activities to array with timestamps
       if (checkInTimes) {
         if (checkInTimes.start) {
-          activities.push({ type: 'start', activity: `${fullname} start`, time: moment(checkInTimes.start).unix() });
+          activities.push({ type: 'Masuk', activity: `${fullname} Masuk`, time: moment(checkInTimes.start).unix() });
         }
         if (checkInTimes.resume) {
-          activities.push({ type: 'resume', activity: `${fullname} resume`, time: moment(checkInTimes.resume).unix() });
+          activities.push({ type: 'Kembali', activity: `${fullname} Kembali`, time: moment(checkInTimes.resume).unix() });
         }
         if (checkInTimes.end) {
-          activities.push({ type: 'end', activity: `${fullname} end`, time: moment(checkInTimes.end).unix() });
+          activities.push({ type: 'Pulang', activity: `${fullname} Pulang`, time: moment(checkInTimes.end).unix() });
         }
         if (checkInTimes.break) {
-          activities.push({ type: 'break', activity: `${fullname} break`, time: moment(checkInTimes.break).unix() });
+          activities.push({ type: 'Istirahat', activity: `${fullname} Istirahat`, time: moment(checkInTimes.break).unix() });
         }
       }
     });
