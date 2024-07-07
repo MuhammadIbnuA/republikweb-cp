@@ -6,19 +6,30 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path'); 
 
+const logActivity = async (karyawanId, activityType) => {
+  try {
+    const activityRef = db.collection('activities').doc();
+    await activityRef.set({
+      karyawan_id: karyawanId,
+      activity_type: activityType,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+};
+
 async function createKaryawan(req, res) {
   try {
     const karyawanId = uuidv4();
     const karyawanRef = db.collection('karyawan').doc(karyawanId);
 
-    // Ensure the default photo is in Firebase Storage
     const defaultPhotoName = 'person-svgrepo-com.png'; 
     const defaultPhotoPath = path.join(__dirname, defaultPhotoName);
 
     try {
       await bucket.file(defaultPhotoName).getMetadata();
     } catch (error) {
-      // If the default image is not found, upload it
       await bucket.upload(defaultPhotoPath, {
         destination: defaultPhotoName,
       });
@@ -27,7 +38,6 @@ async function createKaryawan(req, res) {
     let profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${defaultPhotoName}`; 
 
     if (req.files && req.files['profile_photo']) {
-      // Upload custom profile photo to Firebase Storage (if provided)
       const profilePhotoFile = req.files['profile_photo'][0];
       const profilePhotoFileName = `profilepicture_${karyawanId}_${Date.now()}`;
       const profilePhotoFileRef = bucket.file(profilePhotoFileName);
@@ -43,7 +53,6 @@ async function createKaryawan(req, res) {
       });
     }
 
-    // Save karyawan data (including the determined profilePhotoUrl)
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
     const karyawanData = {
       karyawan_id: karyawanId,
@@ -56,7 +65,7 @@ async function createKaryawan(req, res) {
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
-      shift: req.body.shift || 'pagi', // default pagi
+      shift: req.body.shift || 'pagi',
       tanggal_lahir: req.body.tanggal_lahir,
       isAdmin: false, 
       pendidikan_terakhir: req.body.pendidikan_terakhir,
@@ -66,10 +75,9 @@ async function createKaryawan(req, res) {
       OS: req.body.OS,
       Browser: req.body.Browser,
       lokasi_kantor: req.body.lokasi_kantor,
-      barcode_url: '' // Placeholder for the barcode image URL
+      barcode_url: ''
     };
 
-    // Upload barcode image to Firebase Storage if provided
     if (req.files && req.files['barcode']) {
       const barcodeFile = req.files['barcode'][0];
       const barcodeFileName = `barcode_${karyawanId}_${Date.now()}`;
@@ -86,22 +94,21 @@ async function createKaryawan(req, res) {
       });
     }
 
-    // Save the karyawan data (after all uploads are complete)
     await karyawanRef.set(karyawanData);
     res.status(201).json(karyawanData);
+
+    await logActivity(karyawanId, 'checkin start');
 
   } catch (error) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
   }
-};
+}
 
-// Update Karyawan details
 const updateKaryawan = async (req, res) => {
   try {
-    const { id } = req.params; // Get karyawan ID from route parameters
-    const updatedData = req.body; // Data to update
+    const { id } = req.params;
+    const updatedData = req.body;
 
-    // Ensure only fields that exist in the schema are updated
     const allowedFields = [
       'fullname', 'username', 'email', 'profile_photo_url', 'NIP', 
       'phoneNumber', 'division', 'shift', 'tanggal_lahir', 'pendidikan_terakhir',
@@ -109,17 +116,17 @@ const updateKaryawan = async (req, res) => {
       'lokasi_kantor', 'barcode_url'
     ];
 
-    // Filter the fields to update based on the allowed fields
     const filteredData = {};
     for (const key in updatedData) {
       if (allowedFields.includes(key)) {
-        filteredData[key] = updatedData[key] === '' ? null : updatedData[key]; // Allow null values
+        filteredData[key] = updatedData[key] === '' ? null : updatedData[key];
       }
     }
 
-    // Update the karyawan document
     const karyawanRef = db.collection('karyawan').doc(id);
     await karyawanRef.update(filteredData);
+
+    await logActivity(id, 'update');
 
     res.status(200).json({ message: 'Karyawan updated successfully' });
   } catch (error) {
@@ -130,229 +137,167 @@ const updateKaryawan = async (req, res) => {
 
 const getBarcodeUrlById = async (req, res) => {
   try {
-    const { id } = req.params; // Get karyawan ID from route parameters
-
-    // Reference to the karyawan document with the specific ID
+    const { id } = req.params;
     const karyawanRef = db.collection('karyawan').doc(id);
-    const snapshot = await karyawanRef.get();
+    const doc = await karyawanRef.get();
 
-    if (!snapshot.exists) {
+    if (!doc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
-    const karyawanData = snapshot.data();
+    const karyawanData = doc.data();
     if (!karyawanData.barcode_url) {
-      return res.status(404).json({ message: 'Barcode URL not found for this karyawan' });
+      return res.status(404).json({ message: 'Barcode URL not found' });
     }
 
-    // Return the barcode URL
     res.status(200).json({ barcode_url: karyawanData.barcode_url });
   } catch (error) {
-    console.error('Error retrieving barcode URL:', error);
-    res.status(500).json({ message: 'Error retrieving barcode URL', error: error.message });
+    res.status(500).json({ message: 'Error fetching barcode URL', error: error.message });
   }
 };
 
 const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
+    const karyawanRef = db.collection('karyawan').where('email', '==', email);
+    const snapshot = await karyawanRef.get();
 
-    const snapshot = await db.collection('karyawan').where('username', '==', username).get();
     if (snapshot.empty) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(404).json({ message: 'Karyawan not found' });
     }
 
-    let user;
-    snapshot.forEach(doc => {
-      user = doc.data();
-    });
+    const karyawan = snapshot.docs[0].data();
+    const match = await bcrypt.compare(password, karyawan.password);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+    if (!match) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      {
-        karyawanId: user.karyawan_id,
-        username: user.username,
-        isAdmin: user.isAdmin,
-        NIP: user.NIP,
-        fullname: user.fullname,
-      },
-      'iwishiwasyourjoke',
-      { expiresIn: '1h' }
-    );
-
-    res.cookie('token', token, { maxAge: 3600000, httpOnly: true });
-    res.json({ token });
+    const token = jwt.sign({ id: karyawan.karyawan_id, isAdmin: karyawan.isAdmin }, 'secret_key', { expiresIn: '1h' });
+    res.status(200).json({ token });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Error during login', error: error.message });
   }
 };
 
-  
 const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
+    const karyawanRef = db.collection('karyawan').where('email', '==', email);
+    const snapshot = await karyawanRef.get();
 
-    // Cari pengguna berdasarkan email
-    const snapshot = await db.collection('karyawan').where('email', '==', email).get();
     if (snapshot.empty) {
-      return res.status(400).json({ error: 'User with this email does not exist' });
+      return res.status(404).json({ message: 'Karyawan not found' });
     }
 
-    let user;
-    snapshot.forEach(doc => {
-      user = doc.data();
-      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
-    });
+    const karyawan = snapshot.docs[0].data();
+    const token = crypto.randomBytes(20).toString('hex');
+    await karyawanRef.doc(karyawan.karyawan_id).update({ resetpasswordtoken: token });
 
-    // Generate OTP dalam bentuk mentah
-    const otp = crypto.randomBytes(3).toString('hex'); // Contoh OTP: "f5e3d8"
-    // Hash OTP sebelum menyimpannya
-    const otpHash = await bcrypt.hash(otp, 10);
-    // Set waktu kedaluwarsa OTP (1 menit dari sekarang)
-    const otpExpiry = Date.now() + 5 * 60 * 1000;
-
-    // Hapus OTP lama jika ada
-    await db.collection('karyawan').doc(user.id).update({
-      resetpasswordtoken: otpHash,
-      otpExpiry: otpExpiry,
-    });
-
-    // Kirim OTP mentah ke email pengguna
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: 'Gmail',
       auth: {
-        user: process.env.EMAIL,
-        pass: process.env.EMAIL_PASSWORD,
-      },
+        user: 'your-email@gmail.com',
+        pass: 'your-email-password'
+      }
     });
 
     const mailOptions = {
-      from: process.env.EMAIL,
-      to: user.email,
-      subject: 'Password Reset OTP',
-      text: `Your new OTP for password reset is: ${otp}. It will expire in 5 minute.`,
+      to: email,
+      from: 'passwordreset@yourapp.com',
+      subject: 'Password Reset Request',
+      text: `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\nPlease click on the following link, or paste this into your browser, to complete the process:\n\nhttp://${req.headers.host}/reset/${token}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`
     };
 
     await transporter.sendMail(mailOptions);
-
-    res.json({ message: 'New OTP sent to email' });
+    res.status(200).json({ message: 'Password reset email sent' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Error requesting password reset', error: error.message });
   }
 };
 
 const validateOtp = async (req, res) => {
   try {
-    const { otp } = req.body;
+    const { token } = req.params;
+    const karyawanRef = db.collection('karyawan').where('resetpasswordtoken', '==', token);
+    const snapshot = await karyawanRef.get();
 
-    // Cari pengguna berdasarkan OTP hash
-    const snapshot = await db.collection('karyawan').where('resetpasswordtoken', '!=', '').get();
     if (snapshot.empty) {
-      return res.status(400).json({ error: 'No users with a reset OTP found' });
+      return res.status(404).json({ message: 'Invalid or expired token' });
     }
 
-    let user;
-    snapshot.forEach(doc => {
-      user = doc.data();
-      user.id = doc.id; // Simpan ID dokumen untuk pembaruan nanti
-    });
-
-    // Periksa apakah OTP masih berlaku
-    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
-      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-    }
-
-    // Verifikasi OTP dengan hash yang ada di database
-    const isOtpValid = await bcrypt.compare(otp, user.resetpasswordtoken);
-    if (!isOtpValid) {
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
-    // Jika OTP valid, beri tahu pengguna
-    res.json({ message: 'OTP is valid', userId: user.id });
+    res.status(200).json({ message: 'Token is valid' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Error validating token', error: error.message });
   }
 };
 
 const resetPassword = async (req, res) => {
   try {
-    const { userId, newPassword } = req.body;
+    const { token } = req.params;
+    const { newPassword } = req.body;
 
-    // Cari pengguna berdasarkan ID pengguna
-    const snapshot = await db.collection('karyawan').doc(userId).get();
-    if (!snapshot.exists) {
-      return res.status(400).json({ error: 'User not found' });
+    const karyawanRef = db.collection('karyawan').where('resetpasswordtoken', '==', token);
+    const snapshot = await karyawanRef.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'Invalid or expired token' });
     }
 
-    const user = snapshot.data();
-
-    // Periksa apakah OTP sudah kadaluarsa
-    if (!user.otpExpiry || user.otpExpiry < Date.now()) {
-      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-    }
-
-    // Hash kata sandi baru dan pembaruan data pengguna
+    const karyawan = snapshot.docs[0].data();
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await db.collection('karyawan').doc(userId).update({
-      password: hashedPassword,
-      resetpasswordtoken: '',
-      otpExpiry: null,
-    });
+    await karyawanRef.doc(karyawan.karyawan_id).update({ password: hashedPassword, resetpasswordtoken: '' });
 
-    res.json({ message: 'Password has been reset' });
+    res.status(200).json({ message: 'Password reset successfully' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Error resetting password', error: error.message });
   }
 };
-
 
 const getKaryawanById = async (req, res) => {
   try {
-      // Get the karyawanId from the request parameters
-      const karyawanId = req.params.id;
+    const { id } = req.params;
+    const karyawanRef = db.collection('karyawan').doc(id);
+    const doc = await karyawanRef.get();
 
-      // Reference to the karyawan collection with the specific karyawan_id
-      const karyawanRef = db.collection('karyawan').where('karyawan_id', '==', karyawanId);
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
 
-      // Execute the query and get the snapshot
-      const snapshot = await karyawanRef.get();
-
-      // Check if the snapshot is empty
-      if (snapshot.empty) {
-          return res.status(404).json({ message: 'Karyawan not found' });
-      }
-
-      // Initialize karyawanData as an empty array
-      let karyawanData = [];
-
-      // Loop through the snapshot and collect the data
-      snapshot.forEach(doc => {
-          karyawanData.push(doc.data());
-      });
-
-      // If only one karyawan is expected, return the first item
-      if (karyawanData.length === 1) {
-          return res.status(200).json(karyawanData[0]);
-      }
-
-      // Otherwise, return all found karyawans
-      res.status(200).json(karyawanData);
+    res.status(200).json(doc.data());
   } catch (error) {
-      // Handle any errors that occur during the process
-      res.status(500).json({ message: 'Error retrieving karyawan', error: error.message });
+    res.status(500).json({ message: 'Error fetching karyawan', error: error.message });
   }
 };
 
-  
+const getRecentActivities = async (req, res) => {
+  try {
+    // Ambil referensi ke koleksi aktivitas
+    const activitiesRef = db.collection('activities').orderBy('timestamp', 'desc');
+    const snapshot = await activitiesRef.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No activities found' });
+    }
+
+    // Proses setiap dokumen aktivitas
+    const activities = snapshot.docs.map(doc => {
+      const activity = doc.data();
+      const now = new Date();
+      const elapsedMinutes = Math.floor((now - activity.timestamp.toDate()) / 1000 / 60);
+      const elapsedText = `${elapsedMinutes} minute${elapsedMinutes > 1 ? 's' : ''} ago`;
+      return {
+        ...activity,
+        elapsed_time: elapsedText
+      };
+    });
+
+    res.status(200).json(activities);
+  } catch (error) {
+    console.error('Error retrieving recent activities:', error);
+    res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
+  }
+};
 
 module.exports = {
   createKaryawan,
@@ -362,5 +307,6 @@ module.exports = {
   requestPasswordReset,
   validateOtp,
   resetPassword,
-  getKaryawanById
+  getKaryawanById,
+  getRecentActivities
 };
