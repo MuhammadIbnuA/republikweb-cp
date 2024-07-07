@@ -373,24 +373,32 @@ const updateShiftDetails = async (req, res) => {
 
 const updateMultipleShiftDetails = async (req, res) => {
   try {
-    const karyawanUpdates = req.body.karyawanUpdates; // Array of karyawan updates
+    const updates = req.body; // Expecting an array of { karyawanId, shift, jam_masuk, jam_pulang }
 
-    if (!Array.isArray(karyawanUpdates)) {
-      return res.status(400).json({ message: 'Invalid data format. Expected an array of karyawan updates.' });
+    // Validate the input
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: 'Invalid input' });
     }
 
-    const batch = db.batch(); // Firestore batch for atomic updates
+    // Prepare batch update
+    const batch = db.batch();
 
-    const shiftDefaults = {
-      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
-      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
-    };
-
-    karyawanUpdates.forEach(update => {
+    updates.forEach(update => {
       const { karyawanId, shift, jam_masuk, jam_pulang } = update;
 
-      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+      const validShifts = ['pagi', 'siang'];
+      if (!validShifts.includes(shift)) {
+        return res.status(400).json({ message: 'Invalid shift' });
+      }
 
+      // Fetch karyawan document
+      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+      const shiftDefaults = {
+        pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+        siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+      };
+
+      // Create an object to store the fields to update
       const updateData = { shift };
 
       if (jam_masuk !== undefined) {
@@ -405,15 +413,15 @@ const updateMultipleShiftDetails = async (req, res) => {
         updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
       }
 
+      // Update shift details
       batch.update(karyawanRef, updateData);
     });
 
     await batch.commit();
-
-    res.status(200).json({ message: 'Shift details updated successfully for multiple karyawan' });
+    res.status(200).json({ message: 'Shift details updated successfully' });
   } catch (error) {
-    console.error('Error updating multiple shift details:', error);
-    res.status(500).json({ message: 'Error updating multiple shift details', error: error.message });
+    console.error('Error updating shift details:', error);
+    res.status(500).json({ message: 'Error updating shift details', error: error.message });
   }
 };
 
