@@ -328,8 +328,8 @@ const getAllKaryawan = async (req, res) => {
     // Referensi ke koleksi karyawan
     const karyawanRef = db.collection('karyawan');
 
-    // Ambil semua dokumen dari koleksi
-    const snapshot = await karyawanRef.get();
+    // Ambil semua dokumen dari koleksi, tapi filter untuk tidak termasuk admin
+    const snapshot = await karyawanRef.where('isAdmin', '==', false).get();
 
     // Jika koleksi kosong
     if (snapshot.empty) {
