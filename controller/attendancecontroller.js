@@ -114,11 +114,9 @@ const checkIn = async (req, res) => {
     const karyawanData = karyawanDoc.data();
     const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
 
-    // Define document reference for today's attendance
     const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
     const attendanceDoc = await attendanceRef.get();
 
-    // Create new attendance record if not exists
     if (!attendanceDoc.exists) {
       await attendanceRef.set({
         karyawanId: karyawanId,
@@ -134,26 +132,25 @@ const checkIn = async (req, res) => {
       });
     }
 
-    // Fetch the updated attendance record
     const attendanceData = (await attendanceRef.get()).data();
 
-    // Define shift timings
+    // Adjust check-in times based on shift
     let startTime, endTime, breakStart, breakEnd;
     if (shift === 'pagi') {
-      startTime = moment(`${now.format('YYYY-MM-DD')} 09:00:00`);
-      endTime = moment(`${now.format('YYYY-MM-DD')} 17:00:00`);
-      breakStart = moment(`${now.format('YYYY-MM-DD')} 13:00:00`);
-      breakEnd = moment(`${now.format('YYYY-MM-DD')} 14:00:00`);
+      startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
+      endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+      breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+      breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
     } else if (shift === 'siang') {
-      startTime = moment(`${now.format('YYYY-MM-DD')} 13:00:00`);
-      endTime = moment(`${now.format('YYYY-MM-DD')} 21:00:00`);
-      breakStart = moment(`${now.format('YYYY-MM-DD')} 17:00:00`);
-      breakEnd = moment(`${now.format('YYYY-MM-DD')} 18:00:00`);
+      startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+      endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
+      breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+      breakEnd = moment(now.format('YYYY-MM-DD') + ' 18:00:00');
     } else {
       return res.status(400).json({ message: 'Invalid shift' });
     }
 
-    // Handle check-in types
+    // Handling check-in types
     if (type === 'start') {
       let timeDebt = 0;
       if (now.isAfter(startTime)) {
@@ -206,10 +203,10 @@ const checkIn = async (req, res) => {
   }
 };
 
+
 const getAttendance = async (req, res) => {
   try {
     const { karyawanId, date } = req.params;
-    const timezone = req.query.timezone || 'Asia/Jakarta'; // Get timezone from query or default to 'Asia/Jakarta'
     const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
@@ -224,13 +221,6 @@ const getAttendance = async (req, res) => {
 
     const attendanceData = attendanceDoc.data();
     attendanceData.fullname = karyawanData.fullname; // Add fullname to attendance data
-
-    // Convert times to user's timezone
-    for (const key in attendanceData.checkInTimes) {
-      if (attendanceData.checkInTimes[key]) {
-        attendanceData.checkInTimes[key] = moment.tz(attendanceData.checkInTimes[key], timezone).format();
-      }
-    }
 
     res.status(200).json(attendanceData);
   } catch (error) {
@@ -318,6 +308,7 @@ const getShiftDetails = async (req, res) => {
       }
 
       shiftDetails.push({
+        karyawanId: doc.id, // Add karyawanId
         fullname: karyawanData.fullname,
         shift: karyawanData.shift,
         jam_masuk: karyawanData.jam_masuk,
@@ -381,51 +372,51 @@ const updateShiftDetails = async (req, res) => {
   }
 };
 
-const updateMultipleShiftDetails = async (req, res) => {
-  try {
-    const { shifts } = req.body; // Expecting an array of shift updates
-    if (!Array.isArray(shifts) || shifts.length === 0) {
-      return res.status(400).json({ message: 'Invalid input: Expected an array of shift updates.' });
-    }
-
-    const batch = db.batch(); // Initialize a batch operation
-
-    // Iterate through each shift update
-    shifts.forEach(update => {
-      const { karyawanId, shift, jam_masuk, jam_pulang } = update;
-
-      const validShifts = ['pagi', 'siang'];
-      if (!validShifts.includes(shift)) {
-        throw new Error(`Invalid shift type for karyawanId ${karyawanId}`);
+  const updateMultipleShiftDetails = async (req, res) => {
+    try {
+      const { shifts } = req.body; // Expecting an array of shift updates
+      if (!Array.isArray(shifts) || shifts.length === 0) {
+        return res.status(400).json({ message: 'Invalid input: Expected an array of shift updates.' });
       }
 
-      // Prepare default shift times
-      const shiftDefaults = {
-        pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
-        siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
-      };
+      const batch = db.batch(); // Initialize a batch operation
 
-      // Create an object to store the fields to update
-      const updateData = { shift };
+      // Iterate through each shift update
+      shifts.forEach(update => {
+        const { karyawanId, shift, jam_masuk, jam_pulang } = update;
 
-      // Only add jam_masuk and jam_pulang to updateData if they are provided, otherwise use defaults
-      updateData.jam_masuk = jam_masuk || shiftDefaults[shift].jam_masuk;
-      updateData.jam_pulang = jam_pulang || shiftDefaults[shift].jam_pulang;
+        const validShifts = ['pagi', 'siang'];
+        if (!validShifts.includes(shift)) {
+          throw new Error(`Invalid shift type for karyawanId ${karyawanId}`);
+        }
 
-      // Prepare the update operation for the batch
-      const karyawanRef = db.collection('karyawan').doc(karyawanId);
-      batch.update(karyawanRef, updateData);
-    });
+        // Prepare default shift times
+        const shiftDefaults = {
+          pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+          siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+        };
 
-    // Commit the batch operation
-    await batch.commit();
+        // Create an object to store the fields to update
+        const updateData = { shift };
 
-    res.status(200).json({ message: 'Shift details updated successfully for all employees' });
-  } catch (error) {
-    console.error('Error updating multiple shift details:', error);
-    res.status(500).json({ message: 'Error updating shift details', error: error.message });
-  }
-};
+        // Only add jam_masuk and jam_pulang to updateData if they are provided, otherwise use defaults
+        updateData.jam_masuk = jam_masuk || shiftDefaults[shift].jam_masuk;
+        updateData.jam_pulang = jam_pulang || shiftDefaults[shift].jam_pulang;
+
+        // Prepare the update operation for the batch
+        const karyawanRef = db.collection('karyawan').doc(karyawanId);
+        batch.update(karyawanRef, updateData);
+      });
+
+      // Commit the batch operation
+      await batch.commit();
+
+      res.status(200).json({ message: 'Shift details updated successfully for all employees' });
+    } catch (error) {
+      console.error('Error updating multiple shift details:', error);
+      res.status(500).json({ message: 'Error updating shift details', error: error.message });
+    }
+  };
 
 // Function to get kehadiran log by karyawan ID
 const getKehadiranLogByKaryawanId = async (req, res) => {
@@ -663,51 +654,6 @@ const getRecentActivities = async (req, res) => {
   }
 };
 
-// Function to handle permission requests
-const requestPermission = async (req, res) => {
-  try {
-    const { karyawanId, date, description, photoLink, category } = req.body;
-    const validCategories = ['ganti jam', 'tidak ganti jam'];
-
-    // Validate the input
-    if (!validCategories.includes(category)) {
-      return res.status(400).json({ message: 'Invalid category' });
-    }
-    if (!description || !photoLink) {
-      return res.status(400).json({ message: 'Description and photo link are required' });
-    }
-
-    const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${date}`);
-    const kehadiranDoc = await kehadiranRef.get();
-
-    if (!kehadiranDoc.exists) {
-      return res.status(404).json({ message: 'Kehadiran record not found' });
-    }
-
-    const kehadiranData = kehadiranDoc.data();
-
-    // Check if the current status is 'tidak hadir'
-    if (kehadiranData.status !== 'tidak hadir') {
-      return res.status(400).json({ message: 'Current status is not "tidak hadir"' });
-    }
-
-    // Update the status to 'izin' and add permission details
-    await kehadiranRef.update({
-      status: 'izin',
-      permission: {
-        description,
-        photoLink,
-        category
-      }
-    });
-
-    res.status(200).json({ message: 'Permission request processed successfully' });
-  } catch (error) {
-    console.error('Error processing permission request:', error);
-    res.status(500).json({ message: 'Error processing permission request', error: error.message });
-  }
-};
-
 module.exports = {
   checkIn,
   getAttendance,
@@ -722,6 +668,5 @@ module.exports = {
   changeKehadiranOnDate,
   getAllKehadiranOnDate,
   getAllKehadiranBetweenDates, // Add the new function to the module exports
-  getRecentActivities,
-  requestPermission
+  getRecentActivities
 };
