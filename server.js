@@ -53,6 +53,14 @@ app.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.
 app.get('/attendance-today/:karyawanId', authenticateToken, attendanceController.getTodayAttendance) 
 app.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
 app.get('/shift-details/:karyawanId', authenticateToken, attendanceController.getShiftDetails); // tested
+app.get('/kehadiran/:karyawanId', authenticateToken, attendanceController.getKehadiranLogByKaryawanId);
+app.get('/kehadiran/:karyawanId/:startDate/:endDate', authenticateToken, attendanceController.getKehadiranBetweenDates);
+app.get('/kehadiran/:karyawanId/:date', authenticateToken, attendanceController.getKehadiranOnDate);
+app.put('/kehadiran/change', authenticateToken, IsAdmin, attendanceController.changeKehadiranOnDate);
+// New routes
+app.get('/kehadiran/today', authenticateToken, attendanceController.getAllKehadiranOnDate);
+app.get('/kehadiran/:startDate/:endDate', authenticateToken, attendanceController.getAllKehadiranBetweenDates);
+
   
 // project 
 app.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested
