@@ -12,7 +12,7 @@ async function createKaryawan(req, res) {
     const karyawanRef = db.collection('karyawan').doc(karyawanId);
 
     // Ensure the default photo is in Firebase Storage
-    const defaultPhotoName = 'person-svgrepo-com.png'; 
+    const defaultPhotoName = 'person-svgrepo-com.png';
     const defaultPhotoPath = path.join(__dirname, defaultPhotoName);
 
     try {
@@ -24,7 +24,7 @@ async function createKaryawan(req, res) {
       });
     }
 
-    let profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${defaultPhotoName}`; 
+    let profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${defaultPhotoName}`;
 
     if (req.files && req.files['profile_photo']) {
       // Upload custom profile photo to Firebase Storage (if provided)
@@ -37,28 +37,37 @@ async function createKaryawan(req, res) {
           .on('error', reject)
           .on('finish', () => {
             profilePhotoUrl = `https://storage.googleapis.com/${bucket.name}/${profilePhotoFileName}`;
-            resolve(); 
+            resolve();
           })
           .end(profilePhotoFile.buffer);
       });
     }
 
-    // Save karyawan data (including the determined profilePhotoUrl)
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    // Default shift times
+    const shiftDefaults = {
+      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+    };
+
+    const shift = req.body.shift || 'pagi'; // default to pagi
+    const { jam_masuk, jam_pulang } = req.body;
+
     const karyawanData = {
       karyawan_id: karyawanId,
       fullname: req.body.fullname,
       username: req.body.username,
       email: req.body.email,
-      password: hashedPassword,
+      password: await bcrypt.hash(req.body.password, 10),
       profile_photo_url: profilePhotoUrl,
       NIP: req.body.NIP,
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
-      shift: req.body.shift || 'pagi', // default pagi
+      shift: shift,
+      jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_masuk}:00Z`)),
+      jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_pulang}:00Z`)),
       tanggal_lahir: req.body.tanggal_lahir,
-      isAdmin: false, 
+      isAdmin: false,
       pendidikan_terakhir: req.body.pendidikan_terakhir,
       tempat_lahir: req.body.tempat_lahir,
       tanggal_masuk: req.body.tanggal_masuk,
@@ -93,7 +102,7 @@ async function createKaryawan(req, res) {
   } catch (error) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
   }
-};
+}
 
 // Update Karyawan details
 const updateKaryawan = async (req, res) => {
@@ -354,43 +363,42 @@ const getKaryawanById = async (req, res) => {
 
 const getAllShifts = async (req, res) => {
   try {
-    // Get all karyawan documents
+    // Reference to the karyawan collection
     const karyawanRef = db.collection('karyawan');
+    
+    // Get all karyawan documents
     const snapshot = await karyawanRef.get();
 
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No employees found' });
+      return res.status(404).json({ message: 'No karyawan found' });
     }
 
-    // Helper function to format Firestore timestamps
-    const formatTime = (timestamp) => {
-      if (!timestamp) return null;
-      const date = timestamp.toDate();
-      return date.toTimeString().slice(0, 5); // Extract HH:mm
-    };
-
-    // Collect shift details
-    let shifts = [];
-    snapshot.forEach(doc => {
+    // Process each document
+    const shifts = snapshot.docs.map(doc => {
       const data = doc.data();
-      shifts.push({
-        karyawanId: data.karyawan_id,
+      
+      // Format timestamps to readable time strings
+      const formatTimestamp = (timestamp) => {
+        if (!timestamp) return null;
+        const date = timestamp.toDate();
+        return date.toTimeString().split(' ')[0].substring(0, 5); // Extract "HH:MM" part
+      };
+
+      return {
+        karyawan_id: data.karyawan_id,
         fullname: data.fullname,
         shift: data.shift,
-        jam_masuk: formatTime(data.jam_masuk) || (data.shift === 'pagi' ? '09:00' : '13:00'),
-        jam_pulang: formatTime(data.jam_pulang) || (data.shift === 'pagi' ? '17:00' : '21:00'),
-      });
+        jam_masuk: formatTimestamp(data.jam_masuk),
+        jam_pulang: formatTimestamp(data.jam_pulang),
+      };
     });
 
     res.status(200).json(shifts);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error retrieving shifts', error: error.message });
+    console.error('Error retrieving all shifts:', error);
+    res.status(500).json({ message: 'Error retrieving all shifts', error: error.message });
   }
 };
-
-const admin = require('firebase-admin');
-const { Timestamp } = admin.firestore;
 
 const updateShift = async (req, res) => {
   try {
@@ -428,8 +436,8 @@ const updateShift = async (req, res) => {
     const updatedData = {
       fullname: fullname || karyawanDoc.data().fullname,
       shift: shift || karyawanDoc.data().shift,
-      jam_masuk: convertToTimestamp(jam_masuk) || (shift === 'pagi' ? convertToTimestamp('09:00') : convertToTimestamp('13:00')),
-      jam_pulang: convertToTimestamp(jam_pulang) || (shift === 'pagi' ? convertToTimestamp('17:00') : convertToTimestamp('21:00')),
+      jam_masuk: convertToTimestamp(jam_masuk) || karyawanDoc.data().jam_masuk,
+      jam_pulang: convertToTimestamp(jam_pulang) || karyawanDoc.data().jam_pulang,
     };
 
     await karyawanDoc.ref.update(updatedData);
@@ -440,7 +448,6 @@ const updateShift = async (req, res) => {
     res.status(500).json({ message: 'Error updating shift', error: error.message });
   }
 };
-
 
 module.exports = {
   createKaryawan,
