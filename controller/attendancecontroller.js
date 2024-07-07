@@ -485,10 +485,7 @@ const getAllKehadiranBetweenDates = async (req, res) => {
 const getRecentActivities = async (req, res) => {
   try {
     const now = moment();
-    const snapshot = await db.collection('attendance')
-      .where('checkInTimes.start', '!=', null) // Mengambil hanya yang sudah mulai
-      .orderBy('date', 'desc') // Mengurutkan berdasarkan tanggal terbaru
-      .get();
+    const snapshot = await db.collection('attendance').orderBy('date', 'desc').limit(100).get(); // Adjust the limit as needed
 
     if (snapshot.empty) {
       return res.status(404).json({ message: 'No attendance records found' });
@@ -498,64 +495,32 @@ const getRecentActivities = async (req, res) => {
     snapshot.forEach(doc => {
       const data = doc.data();
       const karyawanId = data.karyawanId;
-      const checkInTimes = data.checkInTimes;
+      const date = moment(data.date);
 
-      if (checkInTimes.start) {
-        const startTime = moment(checkInTimes.start);
-        const startElapsed = now.diff(startTime, 'minutes');
-        activities.push({
-          karyawanId: karyawanId,
-          type: 'start',
-          timeElapsed: startElapsed,
-          timestamp: checkInTimes.start
-        });
-      }
+      // Add employee details
+      const employee = {
+        karyawanId: karyawanId,
+        fullname: data.fullname,
+        checkInTimes: data.checkInTimes,
+        timeDebt: data.timeDebt,
+        timestamp: date
+      };
 
-      if (checkInTimes.break) {
-        const breakTime = moment(checkInTimes.break);
-        const breakElapsed = now.diff(breakTime, 'minutes');
-        activities.push({
-          karyawanId: karyawanId,
-          type: 'break',
-          timeElapsed: breakElapsed,
-          timestamp: checkInTimes.break
-        });
-      }
-
-      if (checkInTimes.resume) {
-        const resumeTime = moment(checkInTimes.resume);
-        const resumeElapsed = now.diff(resumeTime, 'minutes');
-        activities.push({
-          karyawanId: karyawanId,
-          type: 'resume',
-          timeElapsed: resumeElapsed,
-          timestamp: checkInTimes.resume
-        });
-      }
-
-      if (checkInTimes.end) {
-        const endTime = moment(checkInTimes.end);
-        const endElapsed = now.diff(endTime, 'minutes');
-        activities.push({
-          karyawanId: karyawanId,
-          type: 'end',
-          timeElapsed: endElapsed,
-          timestamp: checkInTimes.end
-        });
-      }
+      activities.push(employee);
     });
 
-    // Urutkan aktivitas berdasarkan waktu yang telah berlalu
-    activities.sort((a, b) => b.timeElapsed - a.timeElapsed);
+    // Sort activities by timestamp in descending order
+    activities.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Format output menjadi string yang mudah dibaca
-    const formattedActivities = activities.map(activity => ({
-      karyawanId: activity.karyawanId,
-      type: activity.type,
-      timeElapsed: activity.timeElapsed,
-      timestamp: activity.timestamp,
-      displayTime: `${activity.type} ${activity.timeElapsed} menit yang lalu`
-    }));
+    // Format activities with elapsed time
+    const formattedActivities = activities.map(activity => {
+      const elapsed = moment.duration(now.diff(activity.timestamp)).humanize();
+      return {
+        fullname: activity.fullname,
+        checkInTimes: activity.checkInTimes,
+        elapsed: elapsed
+      };
+    });
 
     res.status(200).json(formattedActivities);
   } catch (error) {
@@ -563,6 +528,7 @@ const getRecentActivities = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
   }
 };
+
 
 module.exports = {
   checkIn,
