@@ -41,7 +41,7 @@ app.post('/karyawan/register', upload.fields([
   { name: 'barcode', maxCount: 1 }
 ]), karyawanController.createKaryawan); // tested
 app.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
-app.put('/karyawan/:id', authenticateToken, IsAdmin, updateKaryawan); // Only admins can update
+app.put('/karyawan/:id', authenticateToken, IsAdmin, karyawanController.updateKaryawan); // Only admins can update
 app.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
 app.post('/karyawan/validasi-otp', karyawanController.validateOtp);
 app.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
