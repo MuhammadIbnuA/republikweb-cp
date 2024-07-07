@@ -290,17 +290,25 @@ const getTodayAttendance = async (req, res) => {
 
 const getShiftDetails = async (req, res) => {
   try {
-    const snapshot = await db.collection('karyawan').get();
+    const { isAdmin } = req.query; // Check if user is an admin from the query parameter
+    const karyawanCollection = db.collection('karyawan');
     
+    // Check if isAdmin is true
+    if (isAdmin === 'true') {
+      return res.status(403).json({ message: 'Access denied for admins' });
+    }
+    
+    // Fetch all karyawan documents
+    const snapshot = await karyawanCollection.get();
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No karyawan found' });
+      return res.status(404).json({ message: 'No karyawan records found' });
     }
 
     const shiftDetails = [];
     snapshot.forEach(doc => {
       const karyawanData = doc.data();
       const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
-
+      
       let startTime, endTime;
       if (shift === 'pagi') {
         startTime = '09:00';
@@ -315,6 +323,7 @@ const getShiftDetails = async (req, res) => {
 
       shiftDetails.push({
         fullname: karyawanData.fullname,
+        shift: karyawanData.shift,
         jam_masuk: startTime,
         jam_pulang: endTime
       });
@@ -329,30 +338,26 @@ const getShiftDetails = async (req, res) => {
 
 const updateShiftDetails = async (req, res) => {
   try {
-    const { karyawanId, shift, startTime, endTime } = req.body;
+    const { karyawanId } = req.params;
+    const { shift, jam_masuk, jam_pulang } = req.body;
 
-    // Validate the shift
     const validShifts = ['pagi', 'siang'];
     if (!validShifts.includes(shift)) {
       return res.status(400).json({ message: 'Invalid shift' });
     }
 
-    // Validate startTime and endTime
-    if (!moment(startTime, 'HH:mm', true).isValid() || !moment(endTime, 'HH:mm', true).isValid()) {
-      return res.status(400).json({ message: 'Invalid time format' });
-    }
-
+    // Fetch karyawan document
     const karyawanRef = db.collection('karyawan').doc(karyawanId);
     const karyawanDoc = await karyawanRef.get();
-
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
+    // Update shift details
     await karyawanRef.update({
       shift: shift,
-      jam_masuk: startTime,
-      jam_pulang: endTime
+      jam_masuk: jam_masuk,
+      jam_pulang: jam_pulang
     });
 
     res.status(200).json({ message: 'Shift details updated successfully' });
