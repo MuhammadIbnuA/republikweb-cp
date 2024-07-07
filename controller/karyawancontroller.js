@@ -352,6 +352,35 @@ const getKaryawanById = async (req, res) => {
   }
 };
 
+const getShiftDetails = async (req, res) => {
+  try {
+    const { id } = req.params; // Get karyawan ID from route parameters
+
+    // Reference to the karyawan document
+    const karyawanRef = db.collection('karyawan').doc(id);
+    const snapshot = await karyawanRef.get();
+
+    if (!snapshot.exists) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
+
+    const karyawanData = snapshot.data();
+    
+    // Return only the shift-related fields
+    const shiftDetails = {
+      fullname: karyawanData.fullname,
+      shift: karyawanData.shift,
+      jam_masuk: karyawanData.jam_masuk,
+      jam_pulang: karyawanData.jam_pulang,
+    };
+
+    res.status(200).json(shiftDetails);
+  } catch (error) {
+    console.error('Error retrieving shift details:', error);
+    res.status(500).json({ message: 'Error retrieving shift details', error: error.message });
+  }
+};
+
 const updateShift = async (req, res) => {
   try {
     const { id } = req.params; // Get karyawan ID from route parameters
@@ -410,5 +439,6 @@ module.exports = {
   validateOtp,
   resetPassword,
   getKaryawanById,
+  getShiftDetails,
   updateShift
 };
