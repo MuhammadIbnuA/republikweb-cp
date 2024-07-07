@@ -322,7 +322,6 @@ const getShiftDetails = async (req, res) => {
       }
 
       shiftDetails.push({
-        idKaryawan: doc.id,  // Include the document ID (employee ID)
         fullname: karyawanData.fullname,
         shift: karyawanData.shift,
         jam_masuk: startTime,
@@ -338,26 +337,27 @@ const getShiftDetails = async (req, res) => {
 };
 
 const updateShiftDetails = async (req, res) => {
-  const { idKaryawan } = req.params; // Extract idKaryawan from URL parameters
-  const { shift, jam_masuk, jam_pulang } = req.body;
-
-  if (!idKaryawan) {
-    return res.status(400).json({ message: 'Karyawan ID is required' });
-  }
-
   try {
-    const karyawanRef = db.collection('karyawan').doc(idKaryawan);
-    const karyawanDoc = await karyawanRef.get();
+    const { karyawanId } = req.params;
+    const { shift, jam_masuk, jam_pulang } = req.body;
 
+    const validShifts = ['pagi', 'siang'];
+    if (!validShifts.includes(shift)) {
+      return res.status(400).json({ message: 'Invalid shift' });
+    }
+
+    // Fetch karyawan document
+    const karyawanRef = db.collection('karyawan').doc(karyawanId);
+    const karyawanDoc = await karyawanRef.get();
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
     // Update shift details
     await karyawanRef.update({
-      shift,
-      jam_masuk,
-      jam_pulang
+      shift: shift,
+      jam_masuk: jam_masuk,
+      jam_pulang: jam_pulang
     });
 
     res.status(200).json({ message: 'Shift details updated successfully' });
