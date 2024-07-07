@@ -50,7 +50,7 @@ async function createKaryawan(req, res) {
     };
 
     const shift = req.body.shift || 'pagi'; // default to pagi
-    const { jam_masuk, jam_pulang } = req.body;
+    const { jam_masuk, jam_pulang, divisionId } = req.body;
 
     const karyawanData = {
       karyawan_id: karyawanId,
@@ -63,6 +63,7 @@ async function createKaryawan(req, res) {
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
+      divisionId: divisionId, // Add divisionId
       shift: shift,
       jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_masuk}:00Z`)),
       jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_pulang}:00Z`)),
@@ -391,20 +392,20 @@ const getKaryawanById = async (req, res) => {
 
 const getKaryawanByDivision = async (req, res) => {
   try {
-    // Ambil parameter division dari query string
-    const { division } = req.query;
+    // Ambil parameter divisionId dari query string
+    const { divisionId } = req.query;
 
-    // Validasi parameter division
-    if (!division) {
-      return res.status(400).json({ message: 'Division parameter is required' });
+    // Validasi parameter divisionId
+    if (!divisionId) {
+      return res.status(400).json({ message: 'Division ID parameter is required' });
     }
 
     // Referensi ke koleksi karyawan
     const karyawanRef = db.collection('karyawan');
 
-    // Ambil dokumen dari koleksi berdasarkan division dan filter untuk tidak termasuk admin
+    // Ambil dokumen dari koleksi berdasarkan divisionId dan filter untuk tidak termasuk admin
     const snapshot = await karyawanRef
-      .where('division', '==', division)
+      .where('divisionId', '==', divisionId)
       .where('isAdmin', '==', false)
       .get();
 
