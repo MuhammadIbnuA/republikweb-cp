@@ -128,7 +128,7 @@ async function updateAdminData(req, res) {
 
     fields.forEach(field => {
       if (req.body[field] !== undefined) {
-        updatedData[field] = req.body[field];
+        updatedData[field] = req.body[field] === null ? null : req.body[field];
       }
     });
 
@@ -343,6 +343,7 @@ const getKaryawanById = async (req, res) => {
 
 module.exports = {
   createKaryawan,
+  updateAdminData,
   login,
   requestPasswordReset,
   validateOtp,
