@@ -485,11 +485,11 @@ const getAllKehadiranBetweenDates = async (req, res) => {
 const getRecentActivities = async (req, res) => {
   try {
     const now = moment();
-    const startOfDay = now.clone().startOf('day').format('YYYYMMDD');
+    const startOfDay = now.clone().startOf('day').format('YYYY-MM-DD');
 
     // Fetch all attendance records from today
     const snapshot = await db.collection('attendance')
-      .where('date', '==', now.format('YYYY-MM-DD'))
+      .where('date', '==', startOfDay)
       .get();
 
     if (snapshot.empty) {
@@ -497,17 +497,41 @@ const getRecentActivities = async (req, res) => {
     }
 
     const activities = [];
+    const karyawanIdSet = new Set();
+
+    // Collect all karyawanIds for later querying
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const checkInTimes = data.checkInTimes;
+
+      if (checkInTimes) {
+        karyawanIdSet.add(data.karyawanId);
+      }
+    });
+
+    // Fetch karyawan fullnames based on karyawanIds
+    const karyawanDocs = await Promise.all(Array.from(karyawanIdSet).map(id => db.collection('karyawan').doc(id).get()));
+    const karyawanMap = new Map();
+    karyawanDocs.forEach(doc => {
+      if (doc.exists) {
+        const karyawanData = doc.data();
+        karyawanMap.set(karyawanData.karyawan_id, karyawanData.fullname);
+      }
+    });
+
+    // Prepare activities with fullnames
     snapshot.forEach(doc => {
       const data = doc.data();
       const karyawanId = data.karyawanId;
+      const fullname = karyawanMap.get(karyawanId) || 'Unknown';
+
       const checkInTimes = data.checkInTimes;
 
-      // Calculate elapsed time for each check-in type
       const formattedTimes = {
-        start: checkInTimes.start ? `${karyawanId} start ${moment(checkInTimes.start).fromNow()}` : null,
-        resume: checkInTimes.resume ? `${karyawanId} resume ${moment(checkInTimes.resume).fromNow()}` : null,
-        end: checkInTimes.end ? `${karyawanId} end ${moment(checkInTimes.end).fromNow()}` : null,
-        break: checkInTimes.break ? `${karyawanId} break ${moment(checkInTimes.break).fromNow()}` : null,
+        start: checkInTimes.start ? `${fullname} Masuk ${moment(checkInTimes.start).fromNow()}` : null,
+        resume: checkInTimes.resume ? `${fullname} Istirahat ${moment(checkInTimes.resume).fromNow()}` : null,
+        end: checkInTimes.end ? `${fullname} Kembali ${moment(checkInTimes.end).fromNow()}` : null,
+        break: checkInTimes.break ? `${fullname} Pulang ${moment(checkInTimes.break).fromNow()}` : null,
       };
 
       // Collect all non-null activities
@@ -519,7 +543,7 @@ const getRecentActivities = async (req, res) => {
     });
 
     // Sort activities by time in descending order
-    activities.sort((a, b) => moment(b.activity.split(' ')[1]).unix() - moment(a.activity.split(' ')[1]).unix());
+    activities.sort((a, b) => moment(b.activity.split(' ')[2]).unix() - moment(a.activity.split(' ')[2]).unix());
 
     res.status(200).json(activities);
   } catch (error) {
@@ -527,7 +551,6 @@ const getRecentActivities = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
   }
 };
-
 
 module.exports = {
   checkIn,
