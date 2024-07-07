@@ -352,7 +352,54 @@ const getKaryawanById = async (req, res) => {
   }
 };
 
-  
+const updateShift = async (req, res) => {
+  try {
+    const { id } = req.params; // Get karyawan ID from route parameters
+    const { fullname, shift, jam_masuk, jam_pulang } = req.body; // Get shift details from request body
+
+    // Validate shift type
+    if (shift !== 'pagi' && shift !== 'siang') {
+      return res.status(400).json({ error: 'Invalid shift type. Must be "pagi" or "siang".' });
+    }
+
+    // Define default working hours
+    const defaultHours = {
+      pagi: { jam_masuk: new Date().setHours(9, 0, 0, 0), jam_pulang: new Date().setHours(17, 0, 0, 0) },
+      siang: { jam_masuk: new Date().setHours(13, 0, 0, 0), jam_pulang: new Date().setHours(21, 0, 0, 0) },
+    };
+
+    // Set working hours based on the shift type
+    const workingHours = defaultHours[shift];
+
+    // Convert provided times to timestamps if present
+    const convertToTimestamp = (timeString, defaultTime) => {
+      if (!timeString) return defaultTime;
+      const [hours, minutes] = timeString.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date.getTime();
+    };
+
+    // Create an object with the updated fields
+    const updatedData = {
+      fullname: fullname || null,
+      shift: shift || 'pagi', // Default to 'pagi' if not provided
+      jam_masuk: convertToTimestamp(jam_masuk, workingHours.jam_masuk),
+      jam_pulang: convertToTimestamp(jam_pulang, workingHours.jam_pulang),
+    };
+
+    // Reference to the karyawan document
+    const karyawanRef = db.collection('karyawan').doc(id);
+
+    // Update the karyawan document with new shift details
+    await karyawanRef.update(updatedData);
+
+    res.status(200).json({ message: 'Shift details updated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating shift details', error: error.message });
+  }
+};
 
 module.exports = {
   createKaryawan,
@@ -362,5 +409,6 @@ module.exports = {
   requestPasswordReset,
   validateOtp,
   resetPassword,
-  getKaryawanById
+  getKaryawanById,
+  updateShift
 };
