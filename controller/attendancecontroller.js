@@ -339,12 +339,19 @@ const updateShiftDetails = async (req, res) => {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
+    // Create an object to store the fields to update
+    const updateData = { shift };
+
+    // Only add jam_masuk and jam_pulang to updateData if they are provided
+    if (jam_masuk !== undefined) {
+      updateData.jam_masuk = jam_masuk;
+    }
+    if (jam_pulang !== undefined) {
+      updateData.jam_pulang = jam_pulang;
+    }
+
     // Update shift details
-    await karyawanRef.update({
-      shift: shift,
-      jam_masuk: jam_masuk,
-      jam_pulang: jam_pulang
-    });
+    await karyawanRef.update(updateData);
 
     res.status(200).json({ message: 'Shift details updated successfully' });
   } catch (error) {
