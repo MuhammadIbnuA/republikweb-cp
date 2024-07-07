@@ -50,7 +50,7 @@ async function createKaryawan(req, res) {
     };
 
     const shift = req.body.shift || 'pagi'; // default to pagi
-    const { jam_masuk, jam_pulang, divisionId } = req.body;
+    const { jam_masuk, jam_pulang } = req.body;
 
     const karyawanData = {
       karyawan_id: karyawanId,
@@ -63,7 +63,6 @@ async function createKaryawan(req, res) {
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
-      divisionId: divisionId, // Add divisionId
       shift: shift,
       jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_masuk}:00Z`)),
       jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_pulang}:00Z`)),
@@ -392,37 +391,28 @@ const getKaryawanById = async (req, res) => {
 
 const getKaryawanByDivision = async (req, res) => {
   try {
-    // Ambil parameter divisionId dari query string
-    const { divisionId } = req.query;
+    const { division } = req.params; // Get division from route parameters
 
-    // Validasi parameter divisionId
-    if (!divisionId) {
-      return res.status(400).json({ message: 'Division ID parameter is required' });
-    }
-
-    // Referensi ke koleksi karyawan
+    // Reference to the karyawan collection
     const karyawanRef = db.collection('karyawan');
 
-    // Ambil dokumen dari koleksi berdasarkan divisionId dan filter untuk tidak termasuk admin
-    const snapshot = await karyawanRef
-      .where('divisionId', '==', divisionId)
-      .where('isAdmin', '==', false)
-      .get();
+    // Query to get karyawan by division
+    const snapshot = await karyawanRef.where('division', '==', division).get();
 
-    // Jika koleksi kosong
+    // Check if the query result is empty
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No karyawan found for the specified division' });
+      return res.status(404).json({ message: 'No karyawan found for this division' });
     }
 
-    // Inisialisasi array untuk menyimpan data karyawan
+    // Initialize an array to hold the karyawan data
     let karyawanList = [];
 
-    // Loop melalui snapshot dan kumpulkan data
+    // Loop through the snapshot and collect the karyawan data
     snapshot.forEach(doc => {
       karyawanList.push(doc.data());
     });
 
-    // Kirim data karyawan sebagai respons
+    // Send the karyawan data as the response
     res.status(200).json(karyawanList);
   } catch (error) {
     console.error(error);

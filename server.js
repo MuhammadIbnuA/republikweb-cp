@@ -42,7 +42,7 @@ app.post('/karyawan/register', upload.fields([
 ]), karyawanController.createKaryawan); // tested
 app.get('/karyawan', karyawanController.getAllKaryawan); // tested
 app.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
-app.get('/karyawan/by-division', karyawanController.getKaryawanByDivision); // tested
+app.get('/karyawan/:division', karyawanController.getKaryawanByDivision); // tested
 app.put('/karyawan/:id', authenticateToken, IsAdmin, karyawanController.updateKaryawan); // Only admins can update
 app.get('/karyawan/:id/barcode', authenticateToken, karyawanController.getBarcodeUrlById);
 app.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
