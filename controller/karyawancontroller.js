@@ -6,6 +6,15 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path'); 
 
+const { db, bucket } = require('../firebase');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path'); 
+const { Timestamp } = require('firebase-admin/firestore'); // Pastikan untuk mengimpor Timestamp
+
 async function createKaryawan(req, res) {
   try {
     const karyawanId = uuidv4();
@@ -64,8 +73,8 @@ async function createKaryawan(req, res) {
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
       shift: shift,
-      jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_masuk}:00Z`)),
-      jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : Timestamp.fromDate(new Date(`1970-01-01T${shiftDefaults[shift].jam_pulang}:00Z`)),
+      jam_masuk: jam_masuk ? Timestamp.fromDate(new Date(`1970-01-01T${jam_masuk}:00Z`)) : null,
+      jam_pulang: jam_pulang ? Timestamp.fromDate(new Date(`1970-01-01T${jam_pulang}:00Z`)) : null,
       tanggal_lahir: req.body.tanggal_lahir,
       isAdmin: false,
       pendidikan_terakhir: req.body.pendidikan_terakhir,
@@ -103,6 +112,12 @@ async function createKaryawan(req, res) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
   }
 }
+
+// Export functions as needed
+module.exports = {
+  createKaryawan,
+  // other functions
+};
 
 // Update Karyawan details
 const updateKaryawan = async (req, res) => {
