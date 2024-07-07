@@ -352,83 +352,95 @@ const getKaryawanById = async (req, res) => {
   }
 };
 
-const getShiftDetails = async (req, res) => {
+const getAllShifts = async (req, res) => {
   try {
-    const { id } = req.params; // Get karyawan ID from route parameters
-
-    // Reference to the karyawan document
-    const karyawanRef = db.collection('karyawan').doc(id);
+    // Get all karyawan documents
+    const karyawanRef = db.collection('karyawan');
     const snapshot = await karyawanRef.get();
 
-    if (!snapshot.exists) {
-      return res.status(404).json({ message: 'Karyawan not found' });
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No employees found' });
     }
 
-    const karyawanData = snapshot.data();
-    
-    // Return only the shift-related fields
-    const shiftDetails = {
-      fullname: karyawanData.fullname,
-      shift: karyawanData.shift,
-      jam_masuk: karyawanData.jam_masuk,
-      jam_pulang: karyawanData.jam_pulang,
+    // Helper function to format Firestore timestamps
+    const formatTime = (timestamp) => {
+      if (!timestamp) return null;
+      const date = timestamp.toDate();
+      return date.toTimeString().slice(0, 5); // Extract HH:mm
     };
 
-    res.status(200).json(shiftDetails);
+    // Collect shift details
+    let shifts = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      shifts.push({
+        karyawanId: data.karyawan_id,
+        fullname: data.fullname,
+        shift: data.shift,
+        jam_masuk: formatTime(data.jam_masuk) || (data.shift === 'pagi' ? '09:00' : '13:00'),
+        jam_pulang: formatTime(data.jam_pulang) || (data.shift === 'pagi' ? '17:00' : '21:00'),
+      });
+    });
+
+    res.status(200).json(shifts);
   } catch (error) {
-    console.error('Error retrieving shift details:', error);
-    res.status(500).json({ message: 'Error retrieving shift details', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Error retrieving shifts', error: error.message });
   }
 };
+
+const admin = require('firebase-admin');
+const { Timestamp } = admin.firestore;
 
 const updateShift = async (req, res) => {
   try {
-    const { id } = req.params; // Get karyawan ID from route parameters
-    const { fullname, shift, jam_masuk, jam_pulang } = req.body; // Get shift details from request body
+    const { karyawanId } = req.params;
+    const { fullname, shift, jam_masuk, jam_pulang } = req.body;
 
-    // Validate shift type
-    if (shift !== 'pagi' && shift !== 'siang') {
-      return res.status(400).json({ error: 'Invalid shift type. Must be "pagi" or "siang".' });
+    // Validate shift type and time
+    const validShifts = ['pagi', 'siang'];
+    if (!validShifts.includes(shift)) {
+      return res.status(400).json({ message: 'Invalid shift type' });
     }
 
-    // Define default working hours
-    const defaultHours = {
-      pagi: { jam_masuk: new Date().setHours(9, 0, 0, 0), jam_pulang: new Date().setHours(17, 0, 0, 0) },
-      siang: { jam_masuk: new Date().setHours(13, 0, 0, 0), jam_pulang: new Date().setHours(21, 0, 0, 0) },
-    };
+    // Validate time format (hh:mm)
+    const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if ((jam_masuk && !timePattern.test(jam_masuk)) || (jam_pulang && !timePattern.test(jam_pulang))) {
+      return res.status(400).json({ message: 'Invalid time format' });
+    }
 
-    // Set working hours based on the shift type
-    const workingHours = defaultHours[shift];
-
-    // Convert provided times to timestamps if present
-    const convertToTimestamp = (timeString, defaultTime) => {
-      if (!timeString) return defaultTime;
+    // Convert time strings to Firestore Timestamp
+    const convertToTimestamp = (timeString) => {
+      if (!timeString) return null;
       const [hours, minutes] = timeString.split(':').map(Number);
-      const date = new Date();
-      date.setHours(hours, minutes, 0, 0);
-      return date.getTime();
+      const now = new Date();
+      return Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes));
     };
 
-    // Create an object with the updated fields
+    const karyawanRef = db.collection('karyawan').where('karyawan_id', '==', karyawanId);
+    const snapshot = await karyawanRef.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
+
+    const karyawanDoc = snapshot.docs[0];
     const updatedData = {
-      fullname: fullname || null,
-      shift: shift || 'pagi', // Default to 'pagi' if not provided
-      jam_masuk: convertToTimestamp(jam_masuk, workingHours.jam_masuk),
-      jam_pulang: convertToTimestamp(jam_pulang, workingHours.jam_pulang),
+      fullname: fullname || karyawanDoc.data().fullname,
+      shift: shift || karyawanDoc.data().shift,
+      jam_masuk: convertToTimestamp(jam_masuk) || (shift === 'pagi' ? convertToTimestamp('09:00') : convertToTimestamp('13:00')),
+      jam_pulang: convertToTimestamp(jam_pulang) || (shift === 'pagi' ? convertToTimestamp('17:00') : convertToTimestamp('21:00')),
     };
 
-    // Reference to the karyawan document
-    const karyawanRef = db.collection('karyawan').doc(id);
+    await karyawanDoc.ref.update(updatedData);
 
-    // Update the karyawan document with new shift details
-    await karyawanRef.update(updatedData);
-
-    res.status(200).json({ message: 'Shift details updated successfully' });
+    res.status(200).json({ message: 'Shift updated successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error updating shift details', error: error.message });
+    res.status(500).json({ message: 'Error updating shift', error: error.message });
   }
 };
+
 
 module.exports = {
   createKaryawan,
@@ -439,6 +451,6 @@ module.exports = {
   validateOtp,
   resetPassword,
   getKaryawanById,
-  getShiftDetails,
+  getAllShifts,
   updateShift
 };
