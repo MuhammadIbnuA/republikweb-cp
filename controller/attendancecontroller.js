@@ -653,6 +653,51 @@ const getRecentActivities = async (req, res) => {
   }
 };
 
+// Function to handle permission requests
+const requestPermission = async (req, res) => {
+  try {
+    const { karyawanId, date, description, photoLink, category } = req.body;
+    const validCategories = ['ganti jam', 'tidak ganti jam'];
+
+    // Validate the input
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({ message: 'Invalid category' });
+    }
+    if (!description || !photoLink) {
+      return res.status(400).json({ message: 'Description and photo link are required' });
+    }
+
+    const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${date}`);
+    const kehadiranDoc = await kehadiranRef.get();
+
+    if (!kehadiranDoc.exists) {
+      return res.status(404).json({ message: 'Kehadiran record not found' });
+    }
+
+    const kehadiranData = kehadiranDoc.data();
+
+    // Check if the current status is 'tidak hadir'
+    if (kehadiranData.status !== 'tidak hadir') {
+      return res.status(400).json({ message: 'Current status is not "tidak hadir"' });
+    }
+
+    // Update the status to 'izin' and add permission details
+    await kehadiranRef.update({
+      status: 'izin',
+      permission: {
+        description,
+        photoLink,
+        category
+      }
+    });
+
+    res.status(200).json({ message: 'Permission request processed successfully' });
+  } catch (error) {
+    console.error('Error processing permission request:', error);
+    res.status(500).json({ message: 'Error processing permission request', error: error.message });
+  }
+};
+
 module.exports = {
   checkIn,
   getAttendance,
@@ -667,5 +712,6 @@ module.exports = {
   changeKehadiranOnDate,
   getAllKehadiranOnDate,
   getAllKehadiranBetweenDates, // Add the new function to the module exports
-  getRecentActivities
+  getRecentActivities,
+  requestPermission
 };
