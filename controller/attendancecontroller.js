@@ -485,7 +485,10 @@ const getAllKehadiranBetweenDates = async (req, res) => {
 const getRecentActivities = async (req, res) => {
   try {
     const now = moment();
-    const snapshot = await db.collection('attendance').get();
+    const snapshot = await db.collection('attendance')
+      .where('checkInTimes.start', '!=', null) // Mengambil hanya yang sudah mulai
+      .orderBy('date', 'desc') // Mengurutkan berdasarkan tanggal terbaru
+      .get();
 
     if (snapshot.empty) {
       return res.status(404).json({ message: 'No attendance records found' });
@@ -496,36 +499,70 @@ const getRecentActivities = async (req, res) => {
       const data = doc.data();
       const karyawanId = data.karyawanId;
       const checkInTimes = data.checkInTimes;
-      
-      const activityDetails = [
-        { type: 'start', time: checkInTimes.start },
-        { type: 'break', time: checkInTimes.break },
-        { type: 'resume', time: checkInTimes.resume },
-        { type: 'end', time: checkInTimes.end },
-      ];
 
-      activityDetails.forEach(activity => {
-        if (activity.time) {
-          const timeAgo = moment(activity.time).fromNow();
-          activities.push({
-            karyawanId,
-            type: activity.type,
-            time: activity.time,
-            timeAgo,
-          });
-        }
-      });
+      if (checkInTimes.start) {
+        const startTime = moment(checkInTimes.start);
+        const startElapsed = now.diff(startTime, 'minutes');
+        activities.push({
+          karyawanId: karyawanId,
+          type: 'start',
+          timeElapsed: startElapsed,
+          timestamp: checkInTimes.start
+        });
+      }
+
+      if (checkInTimes.break) {
+        const breakTime = moment(checkInTimes.break);
+        const breakElapsed = now.diff(breakTime, 'minutes');
+        activities.push({
+          karyawanId: karyawanId,
+          type: 'break',
+          timeElapsed: breakElapsed,
+          timestamp: checkInTimes.break
+        });
+      }
+
+      if (checkInTimes.resume) {
+        const resumeTime = moment(checkInTimes.resume);
+        const resumeElapsed = now.diff(resumeTime, 'minutes');
+        activities.push({
+          karyawanId: karyawanId,
+          type: 'resume',
+          timeElapsed: resumeElapsed,
+          timestamp: checkInTimes.resume
+        });
+      }
+
+      if (checkInTimes.end) {
+        const endTime = moment(checkInTimes.end);
+        const endElapsed = now.diff(endTime, 'minutes');
+        activities.push({
+          karyawanId: karyawanId,
+          type: 'end',
+          timeElapsed: endElapsed,
+          timestamp: checkInTimes.end
+        });
+      }
     });
 
-    activities.sort((a, b) => new Date(b.time) - new Date(a.time)); // Sort by most recent activity
+    // Urutkan aktivitas berdasarkan waktu yang telah berlalu
+    activities.sort((a, b) => b.timeElapsed - a.timeElapsed);
 
-    res.status(200).json(activities);
+    // Format output menjadi string yang mudah dibaca
+    const formattedActivities = activities.map(activity => ({
+      karyawanId: activity.karyawanId,
+      type: activity.type,
+      timeElapsed: activity.timeElapsed,
+      timestamp: activity.timestamp,
+      displayTime: `${activity.type} ${activity.timeElapsed} menit yang lalu`
+    }));
+
+    res.status(200).json(formattedActivities);
   } catch (error) {
     console.error('Error retrieving recent activities:', error);
     res.status(500).json({ message: 'Error retrieving recent activities', error: error.message });
   }
 };
-
 
 module.exports = {
   checkIn,
