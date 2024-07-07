@@ -383,13 +383,21 @@ const updateMultipleShiftDetails = async (req, res) => {
     const validShifts = ['pagi', 'siang'];
     const batch = db.batch();
 
-    updates.forEach(({ karyawanId, shift, jam_masuk, jam_pulang }) => {
+    for (const update of updates) {
+      const { karyawanId, shift, jam_masuk, jam_pulang } = update;
+
       // Validate shift
       if (!validShifts.includes(shift)) {
         return res.status(400).json({ message: `Invalid shift: ${shift}` });
       }
 
       const karyawanRef = db.collection('karyawan').doc(karyawanId);
+
+      // Check if karyawan exists
+      const karyawanDoc = await karyawanRef.get();
+      if (!karyawanDoc.exists) {
+        return res.status(404).json({ message: `Karyawan ID ${karyawanId} not found` });
+      }
 
       // Default shift times
       const shiftDefaults = {
@@ -405,7 +413,7 @@ const updateMultipleShiftDetails = async (req, res) => {
       updateData.jam_pulang = jam_pulang || shiftDefaults[shift].jam_pulang;
 
       batch.update(karyawanRef, updateData);
-    });
+    }
 
     await batch.commit();
     res.status(200).json({ message: 'Shift details updated successfully' });
