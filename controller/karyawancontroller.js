@@ -389,6 +389,47 @@ const getKaryawanById = async (req, res) => {
   }
 };
 
+const getKaryawanByDivision = async (req, res) => {
+  try {
+    // Ambil parameter division dari query string
+    const { division } = req.query;
+
+    // Validasi parameter division
+    if (!division) {
+      return res.status(400).json({ message: 'Division parameter is required' });
+    }
+
+    // Referensi ke koleksi karyawan
+    const karyawanRef = db.collection('karyawan');
+
+    // Ambil dokumen dari koleksi berdasarkan division dan filter untuk tidak termasuk admin
+    const snapshot = await karyawanRef
+      .where('division', '==', division)
+      .where('isAdmin', '==', false)
+      .get();
+
+    // Jika koleksi kosong
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No karyawan found for the specified division' });
+    }
+
+    // Inisialisasi array untuk menyimpan data karyawan
+    let karyawanList = [];
+
+    // Loop melalui snapshot dan kumpulkan data
+    snapshot.forEach(doc => {
+      karyawanList.push(doc.data());
+    });
+
+    // Kirim data karyawan sebagai respons
+    res.status(200).json(karyawanList);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error retrieving karyawan by division', error: error.message });
+  }
+};
+
+
 module.exports = {
   createKaryawan,
   updateKaryawan,
@@ -398,5 +439,6 @@ module.exports = {
   validateOtp,
   resetPassword,
   getAllKaryawan,
-  getKaryawanById
+  getKaryawanById,
+  getKaryawanByDivision
 };
