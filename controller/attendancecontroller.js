@@ -338,34 +338,26 @@ const getShiftDetails = async (req, res) => {
 };
 
 const updateShiftDetails = async (req, res) => {
-  const { idKaryawan } = req.params; // Get the karyawan ID from the URL parameters
-  const { shift, jam_masuk, jam_pulang } = req.body; // Get the shift details from the request body
+  const { idKaryawan } = req.params; // Extract idKaryawan from URL parameters
+  const { shift, jam_masuk, jam_pulang } = req.body;
+
+  if (!idKaryawan) {
+    return res.status(400).json({ message: 'Karyawan ID is required' });
+  }
 
   try {
-    // Ensure that idKaryawan is provided
-    if (!idKaryawan) {
-      return res.status(400).json({ message: 'Karyawan ID is required' });
-    }
+    const karyawanRef = db.collection('karyawan').doc(idKaryawan);
+    const karyawanDoc = await karyawanRef.get();
 
-    // Ensure that required fields are provided
-    if (!shift || !jam_masuk || !jam_pulang) {
-      return res.status(400).json({ message: 'Shift details are required' });
-    }
-
-    // Get the karyawan document by ID
-    const karyawanDocRef = db.collection('karyawan').doc(idKaryawan);
-    const karyawanDoc = await karyawanDocRef.get();
-
-    // Check if the document exists
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
-    // Update the karyawan document with new shift details
-    await karyawanDocRef.update({
-      shift: shift,
-      jam_masuk: jam_masuk,
-      jam_pulang: jam_pulang
+    // Update shift details
+    await karyawanRef.update({
+      shift,
+      jam_masuk,
+      jam_pulang
     });
 
     res.status(200).json({ message: 'Shift details updated successfully' });
