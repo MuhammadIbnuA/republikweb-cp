@@ -1,5 +1,5 @@
 const { db } = require('../firebase');
-const moment = require('moment-timezone');
+const moment = require('moment');
 
 // const checkIn = async (req, res) => {
 //   try {
@@ -99,14 +99,26 @@ const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
     const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
-    const timezone = req.body.timezone || 'Asia/Jakarta'; // Get timezone from request or default to 'Asia/Jakarta'
-    const now = moment().tz(timezone); // Use timezone to get current time in user's timezone
+    const now = moment();
 
-    // ... (rest of your code)
+    // Check if karyawanId is defined
+    if (!karyawanId) {
+      return res.status(400).json({ message: 'Invalid karyawan ID' });
+    }
 
+    const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
+    if (!karyawanDoc.exists) {
+      return res.status(404).json({ message: 'Karyawan not found' });
+    }
+
+    const karyawanData = karyawanDoc.data();
+    const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
+
+    // Define document reference for today's attendance
     const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
     const attendanceDoc = await attendanceRef.get();
 
+    // Create new attendance record if not exists
     if (!attendanceDoc.exists) {
       await attendanceRef.set({
         karyawanId: karyawanId,
@@ -122,25 +134,26 @@ const checkIn = async (req, res) => {
       });
     }
 
+    // Fetch the updated attendance record
     const attendanceData = (await attendanceRef.get()).data();
 
-    // Adjust check-in times based on shift
+    // Define shift timings
     let startTime, endTime, breakStart, breakEnd;
     if (shift === 'pagi') {
-      startTime = moment.tz(now.format('YYYY-MM-DD') + ' 09:00:00', timezone);
-      endTime = moment.tz(now.format('YYYY-MM-DD') + ' 17:00:00', timezone);
-      breakStart = moment.tz(now.format('YYYY-MM-DD') + ' 13:00:00', timezone);
-      breakEnd = moment.tz(now.format('YYYY-MM-DD') + ' 14:00:00', timezone);
+      startTime = moment(`${now.format('YYYY-MM-DD')} 09:00:00`);
+      endTime = moment(`${now.format('YYYY-MM-DD')} 17:00:00`);
+      breakStart = moment(`${now.format('YYYY-MM-DD')} 13:00:00`);
+      breakEnd = moment(`${now.format('YYYY-MM-DD')} 14:00:00`);
     } else if (shift === 'siang') {
-      startTime = moment.tz(now.format('YYYY-MM-DD') + ' 13:00:00', timezone);
-      endTime = moment.tz(now.format('YYYY-MM-DD') + ' 21:00:00', timezone);
-      breakStart = moment.tz(now.format('YYYY-MM-DD') + ' 17:00:00', timezone);
-      breakEnd = moment.tz(now.format('YYYY-MM-DD') + ' 18:00:00', timezone);
+      startTime = moment(`${now.format('YYYY-MM-DD')} 13:00:00`);
+      endTime = moment(`${now.format('YYYY-MM-DD')} 21:00:00`);
+      breakStart = moment(`${now.format('YYYY-MM-DD')} 17:00:00`);
+      breakEnd = moment(`${now.format('YYYY-MM-DD')} 18:00:00`);
     } else {
       return res.status(400).json({ message: 'Invalid shift' });
     }
 
-    // Handling check-in types
+    // Handle check-in types
     if (type === 'start') {
       let timeDebt = 0;
       if (now.isAfter(startTime)) {
@@ -155,7 +168,7 @@ const checkIn = async (req, res) => {
       if (!attendanceData.checkInTimes.break) {
         return res.status(400).json({ message: 'No break recorded' });
       }
-      const lastBreakTime = moment(attendanceData.checkInTimes.break).tz(timezone);
+      const lastBreakTime = moment(attendanceData.checkInTimes.break);
       const breakDuration = now.diff(lastBreakTime, 'minutes');
       if (breakDuration > 60) {
         attendanceData.timeDebt += breakDuration - 60;
