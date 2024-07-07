@@ -1,5 +1,5 @@
 const { db } = require('../firebase');
-const moment = require('moment');
+const moment = require('moment-timezone');
 
 // const checkIn = async (req, res) => {
 //   try {
@@ -99,20 +99,10 @@ const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
     const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
-    const now = moment();
+    const timezone = req.body.timezone || 'Asia/Jakarta'; // Get timezone from request or default to 'Asia/Jakarta'
+    const now = moment().tz(timezone); // Use timezone to get current time in user's timezone
 
-    // Check if karyawanId is defined
-    if (!karyawanId) {
-      return res.status(400).json({ message: 'Invalid karyawan ID' });
-    }
-
-    const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
-    if (!karyawanDoc.exists) {
-      return res.status(404).json({ message: 'Karyawan not found' });
-    }
-
-    const karyawanData = karyawanDoc.data();
-    const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
+    // ... (rest of your code)
 
     const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
     const attendanceDoc = await attendanceRef.get();
@@ -137,15 +127,15 @@ const checkIn = async (req, res) => {
     // Adjust check-in times based on shift
     let startTime, endTime, breakStart, breakEnd;
     if (shift === 'pagi') {
-      startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
-      endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
-      breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
-      breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
+      startTime = moment.tz(now.format('YYYY-MM-DD') + ' 09:00:00', timezone);
+      endTime = moment.tz(now.format('YYYY-MM-DD') + ' 17:00:00', timezone);
+      breakStart = moment.tz(now.format('YYYY-MM-DD') + ' 13:00:00', timezone);
+      breakEnd = moment.tz(now.format('YYYY-MM-DD') + ' 14:00:00', timezone);
     } else if (shift === 'siang') {
-      startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
-      endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
-      breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
-      breakEnd = moment(now.format('YYYY-MM-DD') + ' 18:00:00');
+      startTime = moment.tz(now.format('YYYY-MM-DD') + ' 13:00:00', timezone);
+      endTime = moment.tz(now.format('YYYY-MM-DD') + ' 21:00:00', timezone);
+      breakStart = moment.tz(now.format('YYYY-MM-DD') + ' 17:00:00', timezone);
+      breakEnd = moment.tz(now.format('YYYY-MM-DD') + ' 18:00:00', timezone);
     } else {
       return res.status(400).json({ message: 'Invalid shift' });
     }
@@ -165,7 +155,7 @@ const checkIn = async (req, res) => {
       if (!attendanceData.checkInTimes.break) {
         return res.status(400).json({ message: 'No break recorded' });
       }
-      const lastBreakTime = moment(attendanceData.checkInTimes.break);
+      const lastBreakTime = moment(attendanceData.checkInTimes.break).tz(timezone);
       const breakDuration = now.diff(lastBreakTime, 'minutes');
       if (breakDuration > 60) {
         attendanceData.timeDebt += breakDuration - 60;
@@ -203,10 +193,10 @@ const checkIn = async (req, res) => {
   }
 };
 
-
 const getAttendance = async (req, res) => {
   try {
     const { karyawanId, date } = req.params;
+    const timezone = req.query.timezone || 'Asia/Jakarta'; // Get timezone from query or default to 'Asia/Jakarta'
     const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
@@ -221,6 +211,13 @@ const getAttendance = async (req, res) => {
 
     const attendanceData = attendanceDoc.data();
     attendanceData.fullname = karyawanData.fullname; // Add fullname to attendance data
+
+    // Convert times to user's timezone
+    for (const key in attendanceData.checkInTimes) {
+      if (attendanceData.checkInTimes[key]) {
+        attendanceData.checkInTimes[key] = moment.tz(attendanceData.checkInTimes[key], timezone).format();
+      }
+    }
 
     res.status(200).json(attendanceData);
   } catch (error) {
