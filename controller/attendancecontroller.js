@@ -373,12 +373,25 @@ const updateShiftDetails = async (req, res) => {
 
 const updateMultipleShiftDetails = async (req, res) => {
   try {
-    const shifts = req.body.shifts; // Expecting an array of shift updates
+    const updates = req.body;
+    console.log('Updates received:', updates); // Debugging
 
-    const batch = db.batch(); // Initialize a batch operation
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: 'Invalid data' });
+    }
 
-    shifts.forEach(({ karyawanId, shift, jam_masuk, jam_pulang }) => {
-      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+    const batch = db.batch();
+
+    updates.forEach(update => {
+      console.log('Processing update:', update); // Debugging
+
+      const { karyawanId, shift, jam_masuk, jam_pulang } = update;
+
+      // Validasi shift
+      const validShifts = ['pagi', 'siang'];
+      if (!validShifts.includes(shift)) {
+        return res.status(400).json({ message: 'Invalid shift' });
+      }
 
       // Default shift times
       const shiftDefaults = {
@@ -386,10 +399,8 @@ const updateMultipleShiftDetails = async (req, res) => {
         siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
       };
 
-      // Create an object to store the fields to update
       const updateData = { shift };
 
-      // Only add jam_masuk and jam_pulang to updateData if they are provided, otherwise use defaults
       if (jam_masuk !== undefined) {
         updateData.jam_masuk = jam_masuk;
       } else {
@@ -402,15 +413,17 @@ const updateMultipleShiftDetails = async (req, res) => {
         updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
       }
 
-      batch.update(karyawanRef, updateData); // Add update to batch
+      const karyawanRef = db.collection('karyawan').doc(karyawanId);
+
+      batch.update(karyawanRef, updateData);
     });
 
-    await batch.commit(); // Commit all updates in the batch
+    await batch.commit();
 
-    res.status(200).json({ message: 'Shift details updated successfully' });
+    res.status(200).json({ message: 'Batch update successful' });
   } catch (error) {
-    console.error('Error updating shift details in batch:', error);
-    res.status(500).json({ message: 'Error updating shift details in batch', error: error.message });
+    console.error('Error updating batch:', error);
+    res.status(500).json({ message: 'Error updating batch', error: error.message });
   }
 };
 
