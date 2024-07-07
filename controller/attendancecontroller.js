@@ -506,19 +506,6 @@ const getRecentActivities = async (req, res) => {
 
       if (checkInTimes) {
         karyawanIdSet.add(data.karyawanId);
-        // Add activities with timestamps
-        if (checkInTimes.start) {
-          activities.push({ type: 'Masuk', karyawanId: data.karyawanId, timestamp: checkInTimes.start });
-        }
-        if (checkInTimes.resume) {
-          activities.push({ type: 'Istirahat', karyawanId: data.karyawanId, timestamp: checkInTimes.resume });
-        }
-        if (checkInTimes.end) {
-          activities.push({ type: 'Kembali', karyawanId: data.karyawanId, timestamp: checkInTimes.end });
-        }
-        if (checkInTimes.break) {
-          activities.push({ type: 'Pulang', karyawanId: data.karyawanId, timestamp: checkInTimes.break });
-        }
       }
     });
 
@@ -532,18 +519,39 @@ const getRecentActivities = async (req, res) => {
       }
     });
 
-    // Format activities with fullnames and sort by timestamp
-    const formattedActivities = activities.map(activity => {
-      const fullname = karyawanMap.get(activity.karyawanId) || 'Unknown';
-      return {
-        type: activity.type,
-        activity: `${fullname} ${activity.type} ${moment(activity.timestamp).fromNow()}`,
-        timestamp: activity.timestamp
-      };
+    // Prepare activities with fullnames and check-in times
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const karyawanId = data.karyawanId;
+      const fullname = karyawanMap.get(karyawanId) || 'Unknown';
+
+      const checkInTimes = data.checkInTimes;
+
+      // Add activities to array with timestamps
+      if (checkInTimes) {
+        if (checkInTimes.start) {
+          activities.push({ type: 'start', activity: `${fullname} start`, time: moment(checkInTimes.start).unix() });
+        }
+        if (checkInTimes.resume) {
+          activities.push({ type: 'resume', activity: `${fullname} resume`, time: moment(checkInTimes.resume).unix() });
+        }
+        if (checkInTimes.end) {
+          activities.push({ type: 'end', activity: `${fullname} end`, time: moment(checkInTimes.end).unix() });
+        }
+        if (checkInTimes.break) {
+          activities.push({ type: 'break', activity: `${fullname} break`, time: moment(checkInTimes.break).unix() });
+        }
+      }
     });
 
-    // Sort activities by timestamp in descending order
-    formattedActivities.sort((a, b) => moment(b.timestamp).unix() - moment(a.timestamp).unix());
+    // Sort activities by the most recent check-in time (descending)
+    activities.sort((a, b) => b.time - a.time);
+
+    // Format the output
+    const formattedActivities = activities.map(activity => ({
+      type: activity.type,
+      activity: `${activity.activity} ${moment.unix(activity.time).fromNow()}`
+    }));
 
     res.status(200).json(formattedActivities);
   } catch (error) {
