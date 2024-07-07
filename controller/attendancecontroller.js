@@ -287,39 +287,78 @@ const getTodayAttendance = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving today\'s attendance', error: error.message });
   }
 };
-// Function to get karyawan full name, jam masuk, and jam pulang based on shift
+
 const getShiftDetails = async (req, res) => {
   try {
-    const { karyawanId } = req.params;
-    const karyawanDoc = await db.collection('karyawan').doc(karyawanId).get();
+    const snapshot = await db.collection('karyawan').get();
+    
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No karyawan found' });
+    }
+
+    const shiftDetails = [];
+    snapshot.forEach(doc => {
+      const karyawanData = doc.data();
+      const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
+
+      let startTime, endTime;
+      if (shift === 'pagi') {
+        startTime = '09:00';
+        endTime = '17:00';
+      } else if (shift === 'siang') {
+        startTime = '13:00';
+        endTime = '21:00';
+      } else {
+        startTime = 'Unknown';
+        endTime = 'Unknown';
+      }
+
+      shiftDetails.push({
+        fullname: karyawanData.fullname,
+        jam_masuk: startTime,
+        jam_pulang: endTime
+      });
+    });
+
+    res.status(200).json(shiftDetails);
+  } catch (error) {
+    console.error('Error retrieving shift details:', error);
+    res.status(500).json({ message: 'Error retrieving shift details', error: error.message });
+  }
+};
+
+const updateShiftDetails = async (req, res) => {
+  try {
+    const { karyawanId, shift, startTime, endTime } = req.body;
+
+    // Validate the shift
+    const validShifts = ['pagi', 'siang'];
+    if (!validShifts.includes(shift)) {
+      return res.status(400).json({ message: 'Invalid shift' });
+    }
+
+    // Validate startTime and endTime
+    if (!moment(startTime, 'HH:mm', true).isValid() || !moment(endTime, 'HH:mm', true).isValid()) {
+      return res.status(400).json({ message: 'Invalid time format' });
+    }
+
+    const karyawanRef = db.collection('karyawan').doc(karyawanId);
+    const karyawanDoc = await karyawanRef.get();
+
     if (!karyawanDoc.exists) {
       return res.status(404).json({ message: 'Karyawan not found' });
     }
 
-    const karyawanData = karyawanDoc.data();
-    const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
-
-    let startTime, endTime;
-    if (shift === 'pagi') {
-      startTime = '09:00';
-      endTime = '17:00';
-    } else if (shift === 'siang') {
-      startTime = '13:00';
-      endTime = '21:00';
-    } else {
-      return res.status(400).json({ message: 'Invalid shift' });
-    }
-
-    const response = {
-      fullname: karyawanData.fullname,
+    await karyawanRef.update({
+      shift: shift,
       jam_masuk: startTime,
       jam_pulang: endTime
-    };
+    });
 
-    res.status(200).json(response);
+    res.status(200).json({ message: 'Shift details updated successfully' });
   } catch (error) {
-    console.error('Error retrieving shift details:', error);
-    res.status(500).json({ message: 'Error retrieving shift details', error: error.message });
+    console.error('Error updating shift details:', error);
+    res.status(500).json({ message: 'Error updating shift details', error: error.message });
   }
 };
 
@@ -566,6 +605,7 @@ module.exports = {
   getKaryawanReport,
   getTodayAttendance,
   getShiftDetails,
+  updateShiftDetails,
   getKehadiranLogByKaryawanId,
   getKehadiranBetweenDates,
   getKehadiranOnDate,
