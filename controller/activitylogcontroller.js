@@ -179,5 +179,6 @@ module.exports = {
   acceptActivityLog,
   rejectActivityLog,
   getActivityLogsByDate,
-  getActivityLogs
+  getActivityLogs,
+  getAllActivityLogs
 };
