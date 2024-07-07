@@ -136,12 +136,12 @@ const checkIn = async (req, res) => {
 
     // Adjust check-in times based on shift
     let startTime, endTime, breakStart, breakEnd;
-    if (shift === 'pagi') {
+    if (shift === 'Pagi') {
       startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
       endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
       breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
       breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
-    } else if (shift === 'siang') {
+    } else if (shift === 'Siang') {
       startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
       endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
       breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
