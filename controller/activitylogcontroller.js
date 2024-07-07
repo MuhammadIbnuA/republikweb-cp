@@ -152,11 +152,32 @@ const getActivityLogsByDate = async (req, res) => {
   }
 };
 
+const getAllActivityLogs = async (req, res) => {
+  try {
+    const snapshot = await db.collectionGroup('activity_logs').get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No activity logs found' });
+    }
+
+    const logs = [];
+    snapshot.forEach(doc => {
+      logs.push(doc.data());
+    });
+
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error('Error retrieving all activity logs:', error);
+    res.status(500).json({ message: 'Error retrieving all activity logs', error: error.message });
+  }
+};
+
 module.exports = {
   addActivityLog,
   getActivityLogs,
   editActivityLog,
   acceptActivityLog,
   rejectActivityLog,
-  getActivityLogsByDate
+  getActivityLogsByDate,
+  getActivityLogs
 };

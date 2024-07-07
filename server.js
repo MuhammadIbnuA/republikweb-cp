@@ -79,6 +79,7 @@ app.get('/activitylog/:date', authenticateToken, activityLogController.getActivi
 app.put('/activitylog/:karyawanId/:activitylogid', authenticateToken, activityLogController.editActivityLog); // tested
 app.post('/activitylog/:karyawanId/:activitylogid/accept',IsAdmin, authenticateToken, activityLogController.acceptActivityLog);// tested
 app.post('/activitylog/:karyawanId/:activitylogid/reject',IsAdmin, authenticateToken, activityLogController.rejectActivityLog);// tested 
+app.get('/all-logs', activityLogController.getActivityLogs);
 
 // debt time logger
 app.get('/debttime/total/:karyawanId', getSumDebtTimeByKaryawanId); // tested
