@@ -373,50 +373,54 @@ const updateShiftDetails = async (req, res) => {
 
 const updateMultipleShiftDetails = async (req, res) => {
   try {
-    const shiftUpdates = req.body; // Expecting an array of shift updates
+    const updates = req.body; // Expecting an array of objects with fullname, shift, jam_masuk, jam_pulang
 
-    if (!Array.isArray(shiftUpdates) || shiftUpdates.length === 0) {
-      return res.status(400).json({ message: 'Invalid input: Expected an array of shift updates' });
+    // Check if updates array is provided
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: 'Invalid request body' });
     }
 
-    const validShifts = ['pagi', 'siang'];
-    const shiftDefaults = {
-      pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
-      siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
-    };
+    // Process each update
+    for (const update of updates) {
+      const { fullname, shift, jam_masuk, jam_pulang } = update;
 
-    // Process each shift update
-    for (const update of shiftUpdates) {
-      const { karyawanId, shift, jam_masuk, jam_pulang } = update;
-
+      // Validate shift
+      const validShifts = ['pagi', 'siang'];
       if (!validShifts.includes(shift)) {
-        return res.status(400).json({ message: `Invalid shift for karyawanId ${karyawanId}` });
+        return res.status(400).json({ message: `Invalid shift: ${shift}` });
       }
 
-      const karyawanRef = db.collection('karyawan').doc(karyawanId);
-      const karyawanDoc = await karyawanRef.get();
-      if (!karyawanDoc.exists) {
-        return res.status(404).json({ message: `Karyawan not found for karyawanId ${karyawanId}` });
+      // Fetch karyawan by fullname
+      const karyawanSnapshot = await db.collection('karyawan')
+        .where('fullname', '==', fullname)
+        .limit(1)
+        .get();
+
+      if (karyawanSnapshot.empty) {
+        return res.status(404).json({ message: `Karyawan with fullname ${fullname} not found` });
       }
 
-      const updateData = { shift };
+      const karyawanDoc = karyawanSnapshot.docs[0];
+      const karyawanId = karyawanDoc.id; // Get karyawanId from the document ID
 
-      if (jam_masuk !== undefined) {
-        updateData.jam_masuk = jam_masuk;
-      } else {
-        updateData.jam_masuk = shiftDefaults[shift].jam_masuk;
-      }
+      // Default shift times
+      const shiftDefaults = {
+        pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
+        siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
+      };
 
-      if (jam_pulang !== undefined) {
-        updateData.jam_pulang = jam_pulang;
-      } else {
-        updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
-      }
+      // Prepare data to update
+      const updateData = {
+        shift,
+        jam_masuk: jam_masuk || shiftDefaults[shift].jam_masuk,
+        jam_pulang: jam_pulang || shiftDefaults[shift].jam_pulang
+      };
 
-      await karyawanRef.update(updateData);
+      // Update karyawan document
+      await db.collection('karyawan').doc(karyawanId).update(updateData);
     }
 
-    res.status(200).json({ message: 'Shift details updated successfully for all employees' });
+    res.status(200).json({ message: 'Shift details updated successfully' });
   } catch (error) {
     console.error('Error updating shift details:', error);
     res.status(500).json({ message: 'Error updating shift details', error: error.message });
