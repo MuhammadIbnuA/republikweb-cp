@@ -373,57 +373,46 @@ const updateShiftDetails = async (req, res) => {
 
 const updateMultipleShiftDetails = async (req, res) => {
   try {
-    const updates = req.body;
-    console.log('Updates received:', updates); // Debugging
+    const { karyawanShifts } = req.body; // `karyawanShifts` is expected to be an array of objects with karyawanId and new shift details
 
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ message: 'Invalid data' });
+    if (!Array.isArray(karyawanShifts)) {
+      return res.status(400).json({ message: 'Invalid data format' });
     }
 
+    // Create a batch to perform multiple updates
     const batch = db.batch();
 
-    updates.forEach(update => {
-      console.log('Processing update:', update); // Debugging
+    karyawanShifts.forEach(shiftData => {
+      const { karyawanId, shift, jam_masuk, jam_pulang } = shiftData;
 
-      const { karyawanId, shift, jam_masuk, jam_pulang } = update;
-
-      // Validasi shift
-      const validShifts = ['pagi', 'siang'];
-      if (!validShifts.includes(shift)) {
-        return res.status(400).json({ message: 'Invalid shift' });
+      // Validate shift and time fields
+      if (!['pagi', 'siang'].includes(shift)) {
+        throw new Error(`Invalid shift for karyawanId: ${karyawanId}`);
       }
 
-      // Default shift times
       const shiftDefaults = {
         pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
         siang: { jam_masuk: '13:00', jam_pulang: '21:00' },
       };
 
-      const updateData = { shift };
-
-      if (jam_masuk !== undefined) {
-        updateData.jam_masuk = jam_masuk;
-      } else {
-        updateData.jam_masuk = shiftDefaults[shift].jam_masuk;
-      }
-
-      if (jam_pulang !== undefined) {
-        updateData.jam_pulang = jam_pulang;
-      } else {
-        updateData.jam_pulang = shiftDefaults[shift].jam_pulang;
-      }
+      // Prepare data to update
+      const updateData = {
+        shift,
+        jam_masuk: jam_masuk || shiftDefaults[shift].jam_masuk,
+        jam_pulang: jam_pulang || shiftDefaults[shift].jam_pulang
+      };
 
       const karyawanRef = db.collection('karyawan').doc(karyawanId);
-
       batch.update(karyawanRef, updateData);
     });
 
+    // Commit the batch
     await batch.commit();
 
-    res.status(200).json({ message: 'Batch update successful' });
+    res.status(200).json({ message: 'Shift details updated successfully for multiple karyawan' });
   } catch (error) {
-    console.error('Error updating batch:', error);
-    res.status(500).json({ message: 'Error updating batch', error: error.message });
+    console.error('Error updating multiple shifts:', error);
+    res.status(500).json({ message: 'Error updating multiple shifts', error: error.message });
   }
 };
 
