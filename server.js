@@ -58,7 +58,7 @@ app.get('/attendance-today/:karyawanId', authenticateToken, attendanceController
 app.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
 app.get('/shift-details', authenticateToken, attendanceController.getShiftDetails);
 app.put('/shift-details/:karyawanId', authenticateToken, attendanceController.updateShiftDetails);
-app.put('/shift-details/update-multiple', authenticateToken, attendanceController.updateMultipleShiftDetails);  
+app.put('/shift-details/update/update-multiple', authenticateToken, attendanceController.updateMultipleShiftDetails);  
 app.get('/kehadiran/:karyawanId', authenticateToken, attendanceController.getKehadiranLogByKaryawanId);
 app.get('/kehadiran/:karyawanId/:startDate/:endDate', authenticateToken, attendanceController.getKehadiranBetweenDates);
 app.get('/kehadiran/:karyawanId/:date', authenticateToken, attendanceController.getKehadiranOnDate);
