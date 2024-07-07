@@ -47,8 +47,6 @@ app.post('/karyawan/request-password-reset', karyawanController.requestPasswordR
 app.post('/karyawan/validasi-otp', karyawanController.validateOtp);
 app.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
 app.post('/karyawan/login', karyawanController.login); // tested
-app.get('/karyawan/shift', authenticateToken, IsAdmin, karyawanController.getAllShifts);
-app.put('/karyawan/:id/update-shift', authenticateToken, IsAdmin, karyawanController.updateShift);
 
 // attendance
 app.post('/attendance/checkin', authenticateToken, attendanceController.checkIn); // tested
