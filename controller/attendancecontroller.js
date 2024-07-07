@@ -99,7 +99,7 @@ const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
     const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
-    const now = moment();
+    const now = moment().tz('Asia/Jakarta'); // Set timezone to WIB
 
     // Check if karyawanId is defined
     if (!karyawanId) {
@@ -137,15 +137,15 @@ const checkIn = async (req, res) => {
     // Adjust check-in times based on shift
     let startTime, endTime, breakStart, breakEnd;
     if (shift === 'pagi') {
-      startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
-      endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
-      breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
-      breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
+      startTime = moment.tz(now.format('YYYY-MM-DD') + ' 09:00:00', 'Asia/Jakarta');
+      endTime = moment.tz(now.format('YYYY-MM-DD') + ' 17:00:00', 'Asia/Jakarta');
+      breakStart = moment.tz(now.format('YYYY-MM-DD') + ' 13:00:00', 'Asia/Jakarta');
+      breakEnd = moment.tz(now.format('YYYY-MM-DD') + ' 14:00:00', 'Asia/Jakarta');
     } else if (shift === 'siang') {
-      startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
-      endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
-      breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
-      breakEnd = moment(now.format('YYYY-MM-DD') + ' 18:00:00');
+      startTime = moment.tz(now.format('YYYY-MM-DD') + ' 13:00:00', 'Asia/Jakarta');
+      endTime = moment.tz(now.format('YYYY-MM-DD') + ' 21:00:00', 'Asia/Jakarta');
+      breakStart = moment.tz(now.format('YYYY-MM-DD') + ' 17:00:00', 'Asia/Jakarta');
+      breakEnd = moment.tz(now.format('YYYY-MM-DD') + ' 18:00:00', 'Asia/Jakarta');
     } else {
       return res.status(400).json({ message: 'Invalid shift' });
     }
@@ -165,7 +165,7 @@ const checkIn = async (req, res) => {
       if (!attendanceData.checkInTimes.break) {
         return res.status(400).json({ message: 'No break recorded' });
       }
-      const lastBreakTime = moment(attendanceData.checkInTimes.break);
+      const lastBreakTime = moment.tz(attendanceData.checkInTimes.break, 'Asia/Jakarta');
       const breakDuration = now.diff(lastBreakTime, 'minutes');
       if (breakDuration > 60) {
         attendanceData.timeDebt += breakDuration - 60;
