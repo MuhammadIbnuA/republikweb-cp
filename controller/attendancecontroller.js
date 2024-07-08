@@ -548,9 +548,6 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
   }
 };
 
-
-
-
 // Function to get kehadiran between dates
 const getKehadiranBetweenDates = async (req, res) => {
   try {
