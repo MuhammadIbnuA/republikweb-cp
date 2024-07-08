@@ -60,7 +60,7 @@ app.get('/shift-details', authenticateToken, attendanceController.getShiftDetail
 app.put('/shift-details/:karyawanId', authenticateToken, attendanceController.updateShiftDetails);
 app.put('/shift-details/update/update-multiple', authenticateToken, attendanceController.updateMultipleShiftDetails);  
 app.get('/kehadiran/:karyawanId', authenticateToken, attendanceController.getKehadiranLogByKaryawanId);
-app.get('/kehadiran/all-karyawan', authenticateToken, attendanceController.getAllKehadiranLogs);
+app.get('/kehadiran/all-karyawan', authenticateToken, attendanceController.getKehadiranLogForAllKaryawan);
 app.get('/kehadiran/:karyawanId/:startDate/:endDate', authenticateToken, attendanceController.getKehadiranBetweenDates);
 app.get('/kehadiran/:karyawanId/:date', authenticateToken, attendanceController.getKehadiranOnDate);
 app.put('/kehadiran/change', authenticateToken, IsAdmin, attendanceController.changeKehadiranOnDate);

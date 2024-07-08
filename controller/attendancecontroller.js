@@ -465,7 +465,8 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
   }
 };
 
-const getAllKehadiranLogs = async (req, res) => {
+// Function to get kehadiran log for all karyawan
+const getKehadiranLogForAllKaryawan = async (req, res) => {
   try {
     const snapshot = await db.collection('kehadiran').get();
 
@@ -476,36 +477,37 @@ const getAllKehadiranLogs = async (req, res) => {
     const logs = [];
     snapshot.forEach(doc => logs.push(doc.data()));
 
+    // Group logs by karyawanId
     const groupedLogs = logs.reduce((acc, log) => {
       const { karyawanId, fullname, NIP, status } = log;
       if (!acc[karyawanId]) {
         acc[karyawanId] = {
           fullname,
           NIP,
-          totalKehadiran: 0,
+          totalHadir: 0,
           totalIzin: 0,
-          totalKetidakhadiran: 0,
+          totalTidakHadir: 0
         };
       }
       if (status === 'hadir') {
-        acc[karyawanId].totalKehadiran += 1;
+        acc[karyawanId].totalHadir += 1;
       } else if (status === 'izin') {
         acc[karyawanId].totalIzin += 1;
       } else if (status === 'tidak hadir') {
-        acc[karyawanId].totalKetidakhadiran += 1;
+        acc[karyawanId].totalTidakHadir += 1;
       }
       return acc;
     }, {});
 
+    // Convert groupedLogs object to an array
     const response = Object.values(groupedLogs);
 
     res.status(200).json(response);
   } catch (error) {
-    console.error('Error retrieving all kehadiran logs:', error);
-    res.status(500).json({ message: 'Error retrieving all kehadiran logs', error: error.message });
+    console.error('Error retrieving kehadiran log for all karyawan:', error);
+    res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
   }
 };
-
 
 // Function to get kehadiran between dates
 const getKehadiranBetweenDates = async (req, res) => {
@@ -720,7 +722,7 @@ module.exports = {
   updateShiftDetails,
   updateMultipleShiftDetails,
   getKehadiranLogByKaryawanId,
-  getAllKehadiranLogs,
+  getKehadiranLogForAllKaryawan,
   getKehadiranBetweenDates,
   getKehadiranOnDate,
   changeKehadiranOnDate,
