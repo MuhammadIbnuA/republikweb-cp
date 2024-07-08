@@ -33,10 +33,10 @@ const getAllProjects = async (req, res) => {
         let snapshot;
 
         if (search) {
-            // Query to get all projects (or you could limit the number of results if needed)
+        
             snapshot = await projectsRef.get();
         } else {
-            // If no search term is provided, return all projects
+
             snapshot = await projectsRef.get();
         }
 
