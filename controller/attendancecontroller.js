@@ -494,7 +494,7 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
       // Filter karyawan documents by fullname if provided
       const karyawanDocs = karyawanSnapshot.docs.filter(doc => {
         const data = doc.data();
-        return !data.isAdmin && (fullname ? data.fullname === fullname : true);
+        return data.isAdmin && (fullname ? data.fullname === fullname : true);
       });
 
       if (karyawanDocs.length === 0) {
