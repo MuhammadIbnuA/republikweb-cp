@@ -465,6 +465,48 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
   }
 };
 
+const getAllKehadiranLogs = async (req, res) => {
+  try {
+    const snapshot = await db.collection('kehadiran').get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No kehadiran logs found' });
+    }
+
+    const logs = [];
+    snapshot.forEach(doc => logs.push(doc.data()));
+
+    const groupedLogs = logs.reduce((acc, log) => {
+      const { karyawanId, fullname, NIP, status } = log;
+      if (!acc[karyawanId]) {
+        acc[karyawanId] = {
+          fullname,
+          NIP,
+          totalKehadiran: 0,
+          totalIzin: 0,
+          totalKetidakhadiran: 0,
+        };
+      }
+      if (status === 'hadir') {
+        acc[karyawanId].totalKehadiran += 1;
+      } else if (status === 'izin') {
+        acc[karyawanId].totalIzin += 1;
+      } else if (status === 'tidak hadir') {
+        acc[karyawanId].totalKetidakhadiran += 1;
+      }
+      return acc;
+    }, {});
+
+    const response = Object.values(groupedLogs);
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error retrieving all kehadiran logs:', error);
+    res.status(500).json({ message: 'Error retrieving all kehadiran logs', error: error.message });
+  }
+};
+
+
 // Function to get kehadiran between dates
 const getKehadiranBetweenDates = async (req, res) => {
   try {
@@ -678,6 +720,7 @@ module.exports = {
   updateShiftDetails,
   updateMultipleShiftDetails,
   getKehadiranLogByKaryawanId,
+  getAllKehadiranLogs,
   getKehadiranBetweenDates,
   getKehadiranOnDate,
   changeKehadiranOnDate,
