@@ -483,19 +483,23 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     // Parse fullname query parameter
     const { fullname } = req.query;
 
-    // Create a base query to get all karyawan documents excluding admins
-    const karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
-
-    // Execute the query
-    const karyawanSnapshot = await karyawanQuery.get();
+    // Get all karyawan documents
+    const karyawanSnapshot = await db.collection('karyawan').get();
 
     if (karyawanSnapshot.empty) {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
 
-    // Filter karyawan documents by fullname if provided
+    // Filter karyawan documents
     const karyawanDocs = karyawanSnapshot.docs.filter(doc => {
       const data = doc.data();
+
+      // Skip karyawan with isAdmin = true
+      if (data.isAdmin) {
+        return false;
+      }
+
+      // Filter by fullname if provided
       return fullname ? data.fullname === fullname : true;
     });
 
@@ -548,8 +552,6 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
   }
 };
-
-
 
 // Function to get kehadiran between dates
 const getKehadiranBetweenDates = async (req, res) => {
