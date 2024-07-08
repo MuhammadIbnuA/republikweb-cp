@@ -95,65 +95,13 @@ const moment = require('moment');
 
 // Function to get attendance by karyawan and date
 
-const autoGenerateAttendanceRecords = async () => {
-  try {
-    const now = moment().format('YYYY-MM-DD');
-    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
-    
-    if (karyawanSnapshot.empty) {
-      console.log('No karyawan records found');
-      return;
-    }
-
-    const batch = db.batch();
-
-    karyawanSnapshot.forEach(doc => {
-      const karyawanData = doc.data();
-      const karyawanId = doc.id;
-
-      const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now}`);
-      
-      batch.set(attendanceRef, {
-        karyawanId: karyawanId,
-        date: now,
-        checkInTimes: {
-          start: null,
-          break: null,
-          resume: null,
-          end: null
-        },
-        timeDebt: 0,
-        fullname: karyawanData.fullname
-      }, { merge: true });
-
-      // Create default kehadiran record
-      const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now}`);
-      batch.set(kehadiranRef, {
-        karyawanId: karyawanId,
-        date: now,
-        status: 'tidak hadir',
-        fullname: karyawanData.fullname,
-        NIP: karyawanData.NIP
-      }, { merge: true });
-    });
-
-    await batch.commit();
-    console.log('Attendance records generated successfully');
-  } catch (error) {
-    console.error('Error generating attendance records:', error);
-  }
-};
-
-// Schedule this function to run daily at a specific time
-const schedule = require('node-schedule');
-schedule.scheduleJob('29 06 * * *', autoGenerateAttendanceRecords); // Runs daily at midnight
-
 const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
-    const karyawanId = req.karyawanId;
+    const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
     const now = moment();
 
+    // Check if karyawanId is defined
     if (!karyawanId) {
       return res.status(400).json({ message: 'Invalid karyawan ID' });
     }
@@ -164,7 +112,7 @@ const checkIn = async (req, res) => {
     }
 
     const karyawanData = karyawanDoc.data();
-    const shift = karyawanData.shift.toLowerCase();
+    const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
 
     const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
     const attendanceDoc = await attendanceRef.get();
@@ -180,19 +128,42 @@ const checkIn = async (req, res) => {
           break: null
         },
         timeDebt: 0,
-        fullname: karyawanData.fullname
+        fullname: karyawanData.fullname // Add fullname to initial attendance data
       });
     }
 
     const attendanceData = (await attendanceRef.get()).data();
 
-    // Handle check-in types
+    // Adjust check-in times based on shift
+    let startTime, endTime, breakStart, breakEnd;
+    if (shift === 'pagi') {
+      startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
+      endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+      breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+      breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
+    } else if (shift === 'siang') {
+      startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+      endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
+      breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+      breakEnd = moment(now.format('YYYY-MM-DD') + ' 18:00:00');
+    } else {
+      return res.status(400).json({ message: 'Invalid shift' });
+    }
+
+    // Handling check-in types
     if (type === 'start') {
+      let timeDebt = 0;
+      if (now.isAfter(startTime)) {
+        timeDebt = now.diff(startTime, 'minutes');
+      }
       attendanceData.checkInTimes.start = now.format();
-      await updateKehadiranStatus(karyawanId, 'hadir');
+      attendanceData.timeDebt += timeDebt;
     } else if (type === 'resume') {
-      if (!attendanceData.checkInTimes.start || !attendanceData.checkInTimes.break) {
-        return res.status(400).json({ message: 'No start or break recorded' });
+      if (!attendanceData.checkInTimes.start) {
+        return res.status(400).json({ message: 'No start recorded' });
+      }
+      if (!attendanceData.checkInTimes.break) {
+        return res.status(400).json({ message: 'No break recorded' });
       }
       const lastBreakTime = moment(attendanceData.checkInTimes.break);
       const breakDuration = now.diff(lastBreakTime, 'minutes');
@@ -202,8 +173,15 @@ const checkIn = async (req, res) => {
       attendanceData.checkInTimes.resume = now.format();
     } else if (type === 'end') {
       const startTime = moment(attendanceData.checkInTimes.start);
-      const totalWorkedMinutes = now.diff(startTime, 'minutes');
-      let requiredWorkMinutes = 8 * 60; // Assuming 8 hours shift
+      const endTime = now;
+      const totalWorkedMinutes = endTime.diff(startTime, 'minutes');
+      let requiredWorkMinutes;
+
+      if (shift === 'pagi') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      } else if (shift === 'siang') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      }
 
       const workDebt = requiredWorkMinutes - totalWorkedMinutes;
       if (workDebt > 0) {
@@ -218,23 +196,28 @@ const checkIn = async (req, res) => {
     }
 
     await attendanceRef.update(attendanceData);
+
+    // Update kehadiran status automatically
+    const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
+    let status = 'tidak hadir';
+    if (type === 'start') {
+      status = 'hadir';
+    }
+
+    await kehadiranRef.set({
+      karyawanId: karyawanId,
+      date: now.format('YYYY-MM-DD'),
+      status: status,
+      fullname: karyawanData.fullname,
+      NIP: karyawanData.NIP
+    }, { merge: true });
+
     res.status(200).json(attendanceData);
   } catch (error) {
     console.error('Error checking in:', error);
     res.status(500).json({ message: 'Error checking in', error: error.message });
   }
 };
-
-const updateKehadiranStatus = async (karyawanId, status) => {
-  const now = moment().format('YYYY-MM-DD');
-  const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now}`);
-  await kehadiranRef.set({
-    karyawanId: karyawanId,
-    date: now,
-    status: status,
-  }, { merge: true });
-};
-
 
 const getAttendance = async (req, res) => {
   try {
