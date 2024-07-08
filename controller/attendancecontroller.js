@@ -306,10 +306,18 @@ const getTodayAttendance = async (req, res) => {
 const getShiftDetails = async (req, res) => {
   try {
     const karyawanCollection = db.collection('karyawan');
-    const { fullname } = req.query; // Ambil fullname dari query parameter jika ada
+    const { fullname } = req.query; // Get fullname from query parameters
     
     // Fetch all karyawan documents
-    const snapshot = await karyawanCollection.get();
+    let query = karyawanCollection;
+    
+    if (fullname) {
+      // Filter by fullname if provided
+      query = query.where('fullname', '==', fullname);
+    }
+    
+    const snapshot = await query.get();
+    
     if (snapshot.empty) {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
@@ -323,25 +331,13 @@ const getShiftDetails = async (req, res) => {
         return;
       }
 
-      // Filter by fullname if specified
-      if (fullname && karyawanData.fullname.toLowerCase().includes(fullname.toLowerCase())) {
-        shiftDetails.push({
-          karyawanId: doc.id, // Add karyawanId
-          fullname: karyawanData.fullname,
-          shift: karyawanData.shift,
-          jam_masuk: karyawanData.jam_masuk,
-          jam_pulang: karyawanData.jam_pulang
-        });
-      } else if (!fullname) {
-        // If no fullname query parameter is provided, include all records
-        shiftDetails.push({
-          karyawanId: doc.id, // Add karyawanId
-          fullname: karyawanData.fullname,
-          shift: karyawanData.shift,
-          jam_masuk: karyawanData.jam_masuk,
-          jam_pulang: karyawanData.jam_pulang
-        });
-      }
+      shiftDetails.push({
+        karyawanId: doc.id, // Add karyawanId
+        fullname: karyawanData.fullname,
+        shift: karyawanData.shift,
+        jam_masuk: karyawanData.jam_masuk,
+        jam_pulang: karyawanData.jam_pulang
+      });
     });
 
     res.status(200).json(shiftDetails);
