@@ -486,24 +486,25 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     // Create a base query to get all karyawan documents excluding admins
     let karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
 
-    // If fullname is provided, add it to the query
-    if (fullname) {
-      karyawanQuery = karyawanQuery.where('fullname', '==', fullname);
-    }
-
-    // Execute the query
+    // Execute the query to get all non-admin karyawan
     const karyawanSnapshot = await karyawanQuery.get();
 
     if (karyawanSnapshot.empty) {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
 
-    // Extract karyawan IDs to filter kehadiran logs
-    const karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
+    // Filter karyawan documents on the server side for partial fullname matches
+    const karyawanDocs = karyawanSnapshot.docs;
+    const filteredKaryawanDocs = fullname
+      ? karyawanDocs.filter(doc => doc.data().fullname.toLowerCase().includes(fullname.toLowerCase()))
+      : karyawanDocs;
 
-    if (karyawanIds.length === 0) {
+    if (filteredKaryawanDocs.length === 0) {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
+
+    // Extract karyawan IDs to filter kehadiran logs
+    const karyawanIds = filteredKaryawanDocs.map(doc => doc.id);
 
     // Get kehadiran logs for the filtered karyawan IDs
     const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', karyawanIds).get();
@@ -547,6 +548,7 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     return res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
   }
 };
+
 
 
 // Function to get kehadiran between dates
