@@ -156,7 +156,7 @@ const generateAttendanceRecords = async () => {
 };
 
 // Schedule task to run at 00:01 every day
-cron.schedule('10 13 * * *', generateAttendanceRecords);
+cron.schedule('15 06 * * *', generateAttendanceRecords);
 
 const checkIn = async (req, res) => {
   try {
