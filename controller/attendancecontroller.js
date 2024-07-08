@@ -219,6 +219,53 @@ const checkIn = async (req, res) => {
   }
 };
 
+const getTotalWorkHoursByDate = async (req, res) => {
+  try {
+    const { date } = req.params; // Date in format YYYY-MM-DD
+
+    // Fetch all attendance documents for the specified date
+    const snapshot = await db.collection('attendance').where('date', '==', date).get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No attendance records found for the given date' });
+    }
+
+    const results = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const { karyawanId, checkInTimes } = data;
+
+      // Extract start and end times
+      const start = moment(checkInTimes.start);
+      const end = moment(checkInTimes.end);
+
+      if (start.isValid() && end.isValid()) {
+        // Calculate total work minutes
+        const totalWorkMinutes = end.diff(start, 'minutes');
+
+        // Convert minutes to HH:MM:SS
+        const hours = Math.floor(totalWorkMinutes / 60);
+        const minutes = totalWorkMinutes % 60;
+        const seconds = 0; // Assuming you want to disregard seconds if not specified
+
+        const formattedWorkHours = moment.utc(moment.duration(hours, 'hours').add(minutes, 'minutes').add(seconds, 'seconds').asMilliseconds()).format('HH:mm:ss');
+
+        results.push({
+          karyawanId,
+          totalWorkHours: formattedWorkHours
+        });
+      }
+    });
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error retrieving total work hours:', error);
+    res.status(500).json({ message: 'Error retrieving total work hours', error: error.message });
+  }
+};
+
+
 const getAttendance = async (req, res) => {
   try {
     const { karyawanId, date } = req.params;
@@ -801,6 +848,7 @@ const getDailyAttendanceStats = async (req, res) => {
 
 module.exports = {
   checkIn,
+  getTotalWorkHoursByDate,
   getAttendance,
   getKaryawanReport,
   getTodayAttendance,

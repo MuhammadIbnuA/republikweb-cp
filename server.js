@@ -69,6 +69,7 @@ app.get('/kehadiran/today', authenticateToken, attendanceController.getAllKehadi
 app.get('/kehadiran/:startDate/:endDate', authenticateToken, attendanceController.getAllKehadiranBetweenDates);
 app.get('/recent-activities', authenticateToken, attendanceController.getRecentActivities);
 app.get('/daily-attendance', authenticateToken, attendanceController.getDailyAttendanceStats);
+app.get('/total-work-hours/:date', authenticateToken, attendanceController.getTotalWorkHoursByDate);
   
 // project 
 app.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested
