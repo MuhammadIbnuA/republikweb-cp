@@ -142,7 +142,7 @@ const generateAttendanceData = async () => {
 };
 
 // Menjadwalkan tugas untuk dijalankan setiap hari pada pukul 00:01
-cron.schedule('*/1 * * * *', generateAttendanceData, {
+cron.schedule('* * * * *', generateAttendanceData, {
   scheduled: true,
   timezone: 'Asia/Jakarta' // Menggunakan zona waktu Jakarta (GMT+7)
 });
