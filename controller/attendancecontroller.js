@@ -179,6 +179,7 @@ const checkIn = async (req, res) => {
       return res.status(400).json({ message: 'Invalid check-in type' });
     }
 
+    console.log(`Updated attendance data: ${JSON.stringify(attendanceData)}`);
     await attendanceRef.update(attendanceData);
 
     // Update kehadiran status automatically
@@ -202,7 +203,6 @@ const checkIn = async (req, res) => {
     res.status(500).json({ message: 'Error checking in', error: error.message });
   }
 };
-
 
 const getAttendance = async (req, res) => {
   try {
