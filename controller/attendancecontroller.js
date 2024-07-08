@@ -1,5 +1,5 @@
 const { db } = require('../firebase');
-const moment = require('moment');
+const moment = require('moment-timezone');
 
 // const checkIn = async (req, res) => {
 //   try {
@@ -99,7 +99,7 @@ const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
     const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
-    const now = moment();
+    const now = moment().tz('Asia/Jakarta');
 
     // Check if karyawanId is defined
     if (!karyawanId) {
