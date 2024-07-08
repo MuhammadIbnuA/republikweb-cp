@@ -28,7 +28,15 @@ const addProject = async (req, res) => {
 
 const getAllProjects = async (req, res) => {
     try {
-        const snapshot = await db.collection('projects').get();
+        const { projectname } = req.query;  // Ambil parameter pencarian dari query string
+        
+        let query = db.collection('projects');
+
+        if (projectname) {
+            query = query.where('projectname', '>=', projectname).where('projectname', '<=', projectname + '\uf8ff');
+        }
+
+        const snapshot = await query.get();
         const projects = snapshot.docs.map(doc => doc.data());
 
         res.status(200).json(projects);
