@@ -478,21 +478,11 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
   }
 };
 
+// Function to get kehadiran log for all karyawan
 const getKehadiranLogForAllKaryawan = async (req, res) => {
   try {
-    // Parse fullname query parameter
-    const { fullname } = req.query;
-
-    // Create a base query to get all karyawan documents excluding admins
-    let karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
-
-    // If fullname is provided, add it to the query
-    if (fullname) {
-      karyawanQuery = karyawanQuery.where('fullname', '==', fullname);
-    }
-
-    // Execute the query
-    const karyawanSnapshot = await karyawanQuery.get();
+    // First, get all karyawan documents excluding admins
+    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
 
     if (karyawanSnapshot.empty) {
       return res.status(404).json({ message: 'No karyawan records found' });
@@ -500,10 +490,6 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
 
     // Extract karyawan IDs to filter kehadiran logs
     const karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
-
-    if (karyawanIds.length === 0) {
-      return res.status(404).json({ message: 'No karyawan records found' });
-    }
 
     // Get kehadiran logs for the filtered karyawan IDs
     const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', karyawanIds).get();
@@ -541,12 +527,13 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     // Convert groupedLogs object to an array
     const response = Object.values(groupedLogs);
 
-    return res.status(200).json(response);
+    res.status(200).json(response);
   } catch (error) {
     console.error('Error retrieving kehadiran log for all karyawan:', error);
-    return res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
+    res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
   }
 };
+
 
 // Function to get kehadiran between dates
 const getKehadiranBetweenDates = async (req, res) => {
