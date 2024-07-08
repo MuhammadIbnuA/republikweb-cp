@@ -390,28 +390,28 @@ const getKaryawanById = async (req, res) => {
 
 const getKaryawanByDivision = async (req, res) => {
   try {
-    const { division } = req.params; // Get division from route parameters
+    const { division } = req.params; // Mengambil division dari route parameters
 
-    // Reference to the karyawan collection
+    // Referensi ke koleksi karyawan
     const karyawanRef = db.collection('karyawan');
 
-    // Query to get karyawan by division
+    // Query untuk mendapatkan karyawan berdasarkan division
     const snapshot = await karyawanRef.where('division', '==', division).get();
 
-    // Check if the query result is empty
+    // Memeriksa apakah hasil query kosong
     if (snapshot.empty) {
       return res.status(404).json({ message: 'No karyawan found for this division' });
     }
 
-    // Initialize an array to hold the karyawan data
+    // Inisialisasi array untuk menyimpan data karyawan
     let karyawanList = [];
 
-    // Loop through the snapshot and collect the karyawan data
+    // Loop melalui snapshot dan mengumpulkan data karyawan
     snapshot.forEach(doc => {
       karyawanList.push(doc.data());
     });
 
-    // Send the karyawan data as the response
+    // Kirim data karyawan sebagai respons
     res.status(200).json(karyawanList);
   } catch (error) {
     console.error(error);
