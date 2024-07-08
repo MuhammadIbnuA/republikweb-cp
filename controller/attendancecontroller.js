@@ -306,18 +306,10 @@ const getTodayAttendance = async (req, res) => {
 const getShiftDetails = async (req, res) => {
   try {
     const karyawanCollection = db.collection('karyawan');
-    const { fullname } = req.query; // Get fullname from query parameters
+    const { fullname } = req.query; // Ambil fullname dari query parameter jika ada
     
     // Fetch all karyawan documents
-    let query = karyawanCollection;
-    
-    if (fullname) {
-      // Filter by fullname if provided
-      query = query.where('fullname', '==', fullname);
-    }
-    
-    const snapshot = await query.get();
-    
+    const snapshot = await karyawanCollection.get();
     if (snapshot.empty) {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
@@ -331,13 +323,25 @@ const getShiftDetails = async (req, res) => {
         return;
       }
 
-      shiftDetails.push({
-        karyawanId: doc.id, // Add karyawanId
-        fullname: karyawanData.fullname,
-        shift: karyawanData.shift,
-        jam_masuk: karyawanData.jam_masuk,
-        jam_pulang: karyawanData.jam_pulang
-      });
+      // Filter by fullname if specified
+      if (fullname && karyawanData.fullname.toLowerCase().includes(fullname.toLowerCase())) {
+        shiftDetails.push({
+          karyawanId: doc.id, // Add karyawanId
+          fullname: karyawanData.fullname,
+          shift: karyawanData.shift,
+          jam_masuk: karyawanData.jam_masuk,
+          jam_pulang: karyawanData.jam_pulang
+        });
+      } else if (!fullname) {
+        // If no fullname query parameter is provided, include all records
+        shiftDetails.push({
+          karyawanId: doc.id, // Add karyawanId
+          fullname: karyawanData.fullname,
+          shift: karyawanData.shift,
+          jam_masuk: karyawanData.jam_masuk,
+          jam_pulang: karyawanData.jam_pulang
+        });
+      }
     });
 
     res.status(200).json(shiftDetails);
@@ -474,18 +478,21 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
   }
 };
 
+// Function to get kehadiran log for all karyawan
 const getKehadiranLogForAllKaryawan = async (req, res) => {
   try {
-    const { fullname } = req.query; // Ambil fullname dari query parameter jika ada
+    // Extract fullname from query parameters if provided
+    const { fullname } = req.query;
 
-    // First, get all karyawan documents excluding admins
-    const karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
-    
-    // Apply filter by fullname if specified
+    // Build the query for karyawan
+    let karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
+
+    // Apply fullname filter if provided
     if (fullname) {
       karyawanQuery = karyawanQuery.where('fullname', '==', fullname);
     }
-    
+
+    // Get all karyawan documents
     const karyawanSnapshot = await karyawanQuery.get();
 
     if (karyawanSnapshot.empty) {
