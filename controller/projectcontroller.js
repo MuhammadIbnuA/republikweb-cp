@@ -28,16 +28,24 @@ const addProject = async (req, res) => {
 
 const getAllProjects = async (req, res) => {
     try {
-        const { projectname } = req.query;  // Ambil parameter pencarian dari query string
-        
-        let query = db.collection('projects');
+        const { search } = req.query; // Get the search term from query parameters
+        let projectsRef = db.collection('projects');
+        let snapshot;
 
-        if (projectname) {
-            query = query.where('projectname', '>=', projectname).where('projectname', '<=', projectname + '\uf8ff');
+        if (search) {
+            // Query to get all projects (or you could limit the number of results if needed)
+            snapshot = await projectsRef.get();
+        } else {
+            // If no search term is provided, return all projects
+            snapshot = await projectsRef.get();
         }
 
-        const snapshot = await query.get();
-        const projects = snapshot.docs.map(doc => doc.data());
+        const projects = snapshot.docs
+            .map(doc => doc.data())
+            .filter(project => {
+                // Perform case-insensitive substring matching
+                return project.projectname.toLowerCase().includes(search.toLowerCase());
+            });
 
         res.status(200).json(projects);
     } catch (error) {
@@ -45,6 +53,8 @@ const getAllProjects = async (req, res) => {
         res.status(500).json({ message: 'Error getting projects', error: error.message });
     }
 };
+
+
 
 const getProjectById = async (req, res) => {
     try {
