@@ -489,16 +489,22 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
 
-    // Extract karyawan IDs and filter by fullname if specified
-    let karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
-    if (fullname) {
-      karyawanIds = karyawanSnapshot.docs
-        .filter(doc => doc.data().fullname.toLowerCase().includes(fullname.toLowerCase()))
-        .map(doc => doc.id);
+    // Filter karyawan documents by fullname if specified
+    const karyawanDocs = karyawanSnapshot.docs;
+    const filteredKaryawanIds = karyawanDocs
+      .filter(doc => {
+        const karyawanData = doc.data();
+        return !fullname || karyawanData.fullname.toLowerCase().includes(fullname.toLowerCase());
+      })
+      .map(doc => doc.id);
+
+    // If no karyawan matched the fullname query, return empty array
+    if (filteredKaryawanIds.length === 0) {
+      return res.status(200).json([]);
     }
 
     // Get kehadiran logs for the filtered karyawan IDs
-    const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', karyawanIds).get();
+    const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', filteredKaryawanIds).get();
 
     if (kehadiranSnapshot.empty) {
       return res.status(404).json({ message: 'No kehadiran logs found' });
