@@ -95,69 +95,6 @@ const moment = require('moment');
 
 // Function to get attendance by karyawan and date
 
-// Function to generate attendance records
-const generateAttendanceRecords = async () => {
-  try {
-    const now = moment().format('YYYY-MM-DD');
-    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
-
-    if (karyawanSnapshot.empty) {
-      console.log('No karyawan records found');
-      return;
-    }
-
-    const batch = db.batch();
-
-    karyawanSnapshot.forEach(doc => {
-      const karyawanData = doc.data();
-      const shift = karyawanData.shift.toLowerCase();
-
-      let startTime, endTime, breakStart, breakEnd;
-      if (shift === 'pagi') {
-        startTime = moment(`${now} 09:00:00`).format();
-        endTime = moment(`${now} 17:00:00`).format();
-        breakStart = moment(`${now} 13:00:00`).format();
-        breakEnd = moment(`${now} 14:00:00`).format();
-      } else if (shift === 'siang') {
-        startTime = moment(`${now} 13:00:00`).format();
-        endTime = moment(`${now} 21:00:00`).format();
-        breakStart = moment(`${now} 17:00:00`).format();
-        breakEnd = moment(`${now} 18:00:00`).format();
-      } else {
-        console.log(`Invalid shift for karyawan ${doc.id}`);
-        return;
-      }
-
-      const attendanceRef = db.collection('attendance').doc(`${doc.id}-${now}`);
-      batch.set(attendanceRef, {
-        karyawanId: doc.id,
-        date: now,
-        checkInTimes: {
-          start: null,
-          resume: null,
-          end: null,
-          break: null
-        },
-        timeDebt: 0,
-        shift,
-        startTime,
-        endTime,
-        breakStart,
-        breakEnd,
-        fullname: karyawanData.fullname
-      }, { merge: true });
-    });
-
-    await batch.commit();
-    console.log('Attendance records generated successfully');
-  } catch (error) {
-    console.error('Error generating attendance records:', error);
-  }
-};
-
-// Schedule task to run at 00:01 every day
-cron.schedule('15 06 * * *', generateAttendanceRecords);
-
 const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
@@ -177,42 +114,104 @@ const checkIn = async (req, res) => {
     const karyawanData = karyawanDoc.data();
     const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
 
-    const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYY-MM-DD')}`);
+    const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
     const attendanceDoc = await attendanceRef.get();
 
     if (!attendanceDoc.exists) {
-      return res.status(404).json({ message: 'Attendance record not found for today' });
+      await attendanceRef.set({
+        karyawanId: karyawanId,
+        date: now.format('YYYY-MM-DD'),
+        checkInTimes: {
+          start: null,
+          resume: null,
+          end: null,
+          break: null
+        },
+        timeDebt: 0,
+        fullname: karyawanData.fullname // Add fullname to initial attendance data
+      });
     }
 
-    const attendanceData = attendanceDoc.data();
+    const attendanceData = (await attendanceRef.get()).data();
+
+    // Adjust check-in times based on shift
+    let startTime, endTime, breakStart, breakEnd;
+    if (shift === 'pagi') {
+      startTime = moment(now.format('YYYY-MM-DD') + ' 09:00:00');
+      endTime = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+      breakStart = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+      breakEnd = moment(now.format('YYYY-MM-DD') + ' 14:00:00');
+    } else if (shift === 'siang') {
+      startTime = moment(now.format('YYYY-MM-DD') + ' 13:00:00');
+      endTime = moment(now.format('YYYY-MM-DD') + ' 21:00:00');
+      breakStart = moment(now.format('YYYY-MM-DD') + ' 17:00:00');
+      breakEnd = moment(now.format('YYYY-MM-DD') + ' 18:00:00');
+    } else {
+      return res.status(400).json({ message: 'Invalid shift' });
+    }
 
     // Handling check-in types
     if (type === 'start') {
-      if (attendanceData.checkInTimes.start) {
-        return res.status(400).json({ message: 'Already checked in' });
+      let timeDebt = 0;
+      if (now.isAfter(startTime)) {
+        timeDebt = now.diff(startTime, 'minutes');
       }
       attendanceData.checkInTimes.start = now.format();
-      attendanceData.status = 'hadir';
+      attendanceData.timeDebt += timeDebt;
     } else if (type === 'resume') {
-      if (!attendanceData.checkInTimes.start || !attendanceData.checkInTimes.break) {
-        return res.status(400).json({ message: 'Invalid resume operation' });
-      }
-      attendanceData.checkInTimes.resume = now.format();
-    } else if (type === 'end') {
       if (!attendanceData.checkInTimes.start) {
         return res.status(400).json({ message: 'No start recorded' });
       }
+      if (!attendanceData.checkInTimes.break) {
+        return res.status(400).json({ message: 'No break recorded' });
+      }
+      const lastBreakTime = moment(attendanceData.checkInTimes.break);
+      const breakDuration = now.diff(lastBreakTime, 'minutes');
+      if (breakDuration > 60) {
+        attendanceData.timeDebt += breakDuration - 60;
+      }
+      attendanceData.checkInTimes.resume = now.format();
+    } else if (type === 'end') {
+      const startTime = moment(attendanceData.checkInTimes.start);
+      const endTime = now;
+      const totalWorkedMinutes = endTime.diff(startTime, 'minutes');
+      let requiredWorkMinutes;
+
+      if (shift === 'pagi') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      } else if (shift === 'siang') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      }
+
+      const workDebt = requiredWorkMinutes - totalWorkedMinutes;
+      if (workDebt > 0) {
+        attendanceData.timeDebt += workDebt;
+      }
+
       attendanceData.checkInTimes.end = now.format();
     } else if (type === 'break') {
-      if (!attendanceData.checkInTimes.start || attendanceData.checkInTimes.break) {
-        return res.status(400).json({ message: 'Invalid break operation' });
-      }
       attendanceData.checkInTimes.break = now.format();
     } else {
       return res.status(400).json({ message: 'Invalid check-in type' });
     }
 
     await attendanceRef.update(attendanceData);
+
+    // Update kehadiran status automatically
+    const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
+    let status = 'tidak hadir';
+    if (type === 'start') {
+      status = 'hadir';
+    }
+
+    await kehadiranRef.set({
+      karyawanId: karyawanId,
+      date: now.format('YYYY-MM-DD'),
+      status: status,
+      fullname: karyawanData.fullname,
+      NIP: karyawanData.NIP
+    }, { merge: true });
+
     res.status(200).json(attendanceData);
   } catch (error) {
     console.error('Error checking in:', error);
