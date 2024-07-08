@@ -482,35 +482,42 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
   try {
     const { fullname } = req.query; // Ambil fullname dari query parameter jika ada
 
-    // First, get all karyawan documents excluding admins
-    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
+    // Pertama, ambil dokumen karyawan yang bukan admin
+    const karyawanCollection = db.collection('karyawan');
+    let karyawanSnapshot = await karyawanCollection.where('isAdmin', '==', false).get();
 
-    if (karyawanSnapshot.empty) {
+    if (fullname) {
+      // Filter karyawan berdasarkan fullname jika ada parameter fullname
+      karyawanSnapshot = await karyawanCollection
+        .where('isAdmin', '==', false)
+        .get();
+      const filteredKaryawanDocs = karyawanSnapshot.docs.filter(doc =>
+        doc.data().fullname.toLowerCase().includes(fullname.toLowerCase())
+      );
+      
+      if (filteredKaryawanDocs.length === 0) {
+        return res.status(404).json({ message: 'No karyawan records found matching the filter' });
+      }
+
+      // Ambil ID karyawan yang telah difilter
+      karyawanSnapshot = { docs: filteredKaryawanDocs };
+    }
+
+    // Extract karyawan IDs untuk memfilter log kehadiran
+    const karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
+
+    if (karyawanIds.length === 0) {
       return res.status(404).json({ message: 'No karyawan records found' });
     }
 
-    // Extract karyawan IDs to filter kehadiran logs
-    let karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
-
-    // Filter karyawan by fullname if specified
-    if (fullname) {
-      karyawanIds = karyawanSnapshot.docs
-        .filter(doc => doc.data().fullname.toLowerCase().includes(fullname.toLowerCase()))
-        .map(doc => doc.id);
-    }
-
-    if (karyawanIds.length === 0) {
-      return res.status(404).json({ message: 'No karyawan records found matching the filter' });
-    }
-
-    // Get kehadiran logs for the filtered karyawan IDs
+    // Ambil log kehadiran untuk ID karyawan yang telah difilter
     const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', karyawanIds).get();
 
     if (kehadiranSnapshot.empty) {
       return res.status(404).json({ message: 'No kehadiran logs found' });
     }
 
-    // Group logs by karyawanId
+    // Kelompokkan log berdasarkan karyawanId
     const groupedLogs = kehadiranSnapshot.docs.reduce((acc, doc) => {
       const log = doc.data();
       const { karyawanId, fullname, NIP, status } = log;
@@ -536,7 +543,7 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
       return acc;
     }, {});
 
-    // Convert groupedLogs object to an array
+    // Konversi objek groupedLogs ke array
     const response = Object.values(groupedLogs);
 
     res.status(200).json(response);
