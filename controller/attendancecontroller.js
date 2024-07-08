@@ -465,49 +465,6 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
   }
 };
 
-// Function to get all karyawan data with their attendance statistics
-const getAllKaryawanData = async (req, res) => {
-  try {
-    const karyawanSnapshot = await db.collection('karyawan').get();
-    if (karyawanSnapshot.empty) {
-      return res.status(404).json({ message: 'No karyawan records found' });
-    }
-
-    const allKaryawanData = [];
-    
-    // Iterate through each karyawan
-    for (const karyawanDoc of karyawanSnapshot.docs) {
-      const karyawanData = karyawanDoc.data();
-      const karyawanId = karyawanDoc.id;
-
-      // Fetch attendance logs for the current karyawan
-      const attendanceSnapshot = await db.collection('kehadiran')
-        .where('karyawanId', '==', karyawanId)
-        .get();
-
-      const logs = [];
-      attendanceSnapshot.forEach(doc => logs.push(doc.data()));
-
-      const totalHadir = logs.filter(log => log.status === 'hadir').length;
-      const totalIzin = logs.filter(log => log.status === 'izin').length;
-      const totalTidakHadir = logs.filter(log => log.status === 'tidak hadir').length;
-
-      allKaryawanData.push({
-        fullname: karyawanData.fullname,
-        NIP: karyawanData.NIP,
-        totalKehadiran: totalHadir,
-        totalIzin: totalIzin,
-        totalKetidakhadiran: totalTidakHadir
-      });
-    }
-
-    res.status(200).json(allKaryawanData);
-  } catch (error) {
-    console.error('Error retrieving all karyawan data:', error);
-    res.status(500).json({ message: 'Error retrieving all karyawan data', error: error.message });
-  }
-};
-
 // Function to get kehadiran between dates
 const getKehadiranBetweenDates = async (req, res) => {
   try {
@@ -721,7 +678,6 @@ module.exports = {
   updateShiftDetails,
   updateMultipleShiftDetails,
   getKehadiranLogByKaryawanId,
-  getAllKaryawanData,
   getKehadiranBetweenDates,
   getKehadiranOnDate,
   changeKehadiranOnDate,
