@@ -478,21 +478,17 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
   }
 };
 
-// Function to get kehadiran log for all karyawan
 const getKehadiranLogForAllKaryawan = async (req, res) => {
-  try {
-    // Extract fullname from query parameters if provided
-    const { fullname } = req.query;
+  const { fullname } = req.query; // Ambil parameter fullname dari query string
 
-    // Build the query for karyawan
+  try {
+    // Query untuk mendapatkan karyawan berdasarkan fullname jika ada parameter pencarian
     let karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
 
-    // Apply fullname filter if provided
     if (fullname) {
       karyawanQuery = karyawanQuery.where('fullname', '==', fullname);
     }
 
-    // Get all karyawan documents
     const karyawanSnapshot = await karyawanQuery.get();
 
     if (karyawanSnapshot.empty) {
