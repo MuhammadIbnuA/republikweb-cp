@@ -51,7 +51,7 @@ app.post('/karyawan/reset-password', karyawanController.resetPassword); // teste
 app.post('/karyawan/login', karyawanController.login); // tested
 
 // attendance
-app.put('/attendance/checkin', authenticateToken, attendanceController.checkIn); // tested
+app.post('/attendance/checkin', authenticateToken, attendanceController.checkIn); // tested
 app.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController.getAttendance); // tested
 app.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
 app.get('/attendance-today/:karyawanId', authenticateToken, attendanceController.getTodayAttendance) 

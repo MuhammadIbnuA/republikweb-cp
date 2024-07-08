@@ -95,66 +95,13 @@ const moment = require('moment');
 
 // Function to get attendance by karyawan and date
 
-// Fungsi untuk generate data kehadiran otomatis
-const generateAttendanceData = async () => {
-  try {
-    const now = moment();
-    const date = now.format('YYYY-MM-DD');
-    const startOfDay = now.startOf('day').format('YYYY-MM-DD');
-
-    // Ambil semua karyawan dari koleksi 'karyawan'
-    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
-
-    if (karyawanSnapshot.empty) {
-      console.log('No karyawan records found');
-      return;
-    }
-
-    // Iterasi setiap karyawan dan buat data kehadiran jika tidak ada
-    const batch = db.batch();
-    karyawanSnapshot.forEach(doc => {
-      const karyawanId = doc.id;
-      const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${date}`);
-      attendanceRef.get().then(attendanceDoc => {
-        if (!attendanceDoc.exists) {
-          batch.set(attendanceRef, {
-            karyawanId: karyawanId,
-            date: date,
-            checkInTimes: {
-              start: null,
-              resume: null,
-              end: null,
-              break: null
-            },
-            timeDebt: 0,
-            status: 'tidak hadir', // Status default
-            fullname: doc.data().fullname
-          });
-        }
-      });
-    });
-
-    await batch.commit();
-    console.log('Attendance data generated successfully');
-  } catch (error) {
-    console.error('Error generating attendance data:', error);
-  }
-};
-
-// Menjadwalkan tugas untuk dijalankan setiap hari pada pukul 00:01
-cron.schedule('* * * * *', generateAttendanceData, {
-  scheduled: true,
-  timezone: 'Asia/Jakarta' // Menggunakan zona waktu Jakarta (GMT+7)
-});
-
-console.log('Cron job scheduled to run daily at 00:01');
-
 const checkIn = async (req, res) => {
   try {
     const { type } = req.body; // type can be 'start', 'resume', 'end', 'break'
     const karyawanId = req.karyawanId; // Ensure karyawanId is correctly extracted from the request
     const now = moment();
 
+    // Check if karyawanId is defined
     if (!karyawanId) {
       return res.status(400).json({ message: 'Invalid karyawan ID' });
     }
@@ -165,16 +112,27 @@ const checkIn = async (req, res) => {
     }
 
     const karyawanData = karyawanDoc.data();
-    const shift = karyawanData.shift.toLowerCase();
+    const shift = karyawanData.shift.toLowerCase(); // Ensure the shift name is in lowercase
 
     const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
     const attendanceDoc = await attendanceRef.get();
 
     if (!attendanceDoc.exists) {
-      return res.status(404).json({ message: 'Attendance record not found' });
+      await attendanceRef.set({
+        karyawanId: karyawanId,
+        date: now.format('YYYY-MM-DD'),
+        checkInTimes: {
+          start: null,
+          resume: null,
+          end: null,
+          break: null
+        },
+        timeDebt: 0,
+        fullname: karyawanData.fullname // Add fullname to initial attendance data
+      });
     }
 
-    const attendanceData = attendanceDoc.data();
+    const attendanceData = (await attendanceRef.get()).data();
 
     // Adjust check-in times based on shift
     let startTime, endTime, breakStart, breakEnd;
@@ -201,8 +159,11 @@ const checkIn = async (req, res) => {
       attendanceData.checkInTimes.start = now.format();
       attendanceData.timeDebt += timeDebt;
     } else if (type === 'resume') {
-      if (!attendanceData.checkInTimes.start || !attendanceData.checkInTimes.break) {
-        return res.status(400).json({ message: 'No start or break recorded' });
+      if (!attendanceData.checkInTimes.start) {
+        return res.status(400).json({ message: 'No start recorded' });
+      }
+      if (!attendanceData.checkInTimes.break) {
+        return res.status(400).json({ message: 'No break recorded' });
       }
       const lastBreakTime = moment(attendanceData.checkInTimes.break);
       const breakDuration = now.diff(lastBreakTime, 'minutes');
@@ -212,8 +173,15 @@ const checkIn = async (req, res) => {
       attendanceData.checkInTimes.resume = now.format();
     } else if (type === 'end') {
       const startTime = moment(attendanceData.checkInTimes.start);
-      const totalWorkedMinutes = now.diff(startTime, 'minutes');
-      const requiredWorkMinutes = shift === 'pagi' ? 8 * 60 : 8 * 60;
+      const endTime = now;
+      const totalWorkedMinutes = endTime.diff(startTime, 'minutes');
+      let requiredWorkMinutes;
+
+      if (shift === 'pagi') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      } else if (shift === 'siang') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      }
 
       const workDebt = requiredWorkMinutes - totalWorkedMinutes;
       if (workDebt > 0) {
@@ -250,7 +218,6 @@ const checkIn = async (req, res) => {
     res.status(500).json({ message: 'Error checking in', error: error.message });
   }
 };
-
 
 const getAttendance = async (req, res) => {
   try {
