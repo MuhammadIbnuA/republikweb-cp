@@ -483,8 +483,8 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     // Parse fullname query parameter
     const { fullname } = req.query;
 
-    // Create a base query to get karyawan documents (including admins)
-    let karyawanQuery = db.collection('karyawan');
+    // Create a base query to get all karyawan documents excluding admins
+    let karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
 
     // If fullname is provided, add it to the query
     if (fullname) {
@@ -547,6 +547,7 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     return res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
   }
 };
+
 
 
 
