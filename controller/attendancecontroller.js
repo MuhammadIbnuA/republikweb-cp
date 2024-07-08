@@ -172,6 +172,22 @@ const checkIn = async (req, res) => {
       }
       attendanceData.checkInTimes.resume = now.format();
     } else if (type === 'end') {
+      const startTime = moment(attendanceData.checkInTimes.start);
+      const endTime = now;
+      const totalWorkedMinutes = endTime.diff(startTime, 'minutes');
+      let requiredWorkMinutes;
+
+      if (shift === 'pagi') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      } else if (shift === 'siang') {
+        requiredWorkMinutes = 8 * 60; // 8 hours
+      }
+
+      const workDebt = requiredWorkMinutes - totalWorkedMinutes;
+      if (workDebt > 0) {
+        attendanceData.timeDebt += workDebt;
+      }
+
       attendanceData.checkInTimes.end = now.format();
     } else if (type === 'break') {
       attendanceData.checkInTimes.break = now.format();
@@ -179,7 +195,6 @@ const checkIn = async (req, res) => {
       return res.status(400).json({ message: 'Invalid check-in type' });
     }
 
-    console.log(`Updated attendance data: ${JSON.stringify(attendanceData)}`);
     await attendanceRef.update(attendanceData);
 
     // Update kehadiran status automatically
