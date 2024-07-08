@@ -741,5 +741,5 @@ module.exports = {
   changeKehadiranOnDate,
   getAllKehadiranOnDate,
   getAllKehadiranBetweenDates, // Add the new function to the module exports
-  getRecentActivities
+  getRecentActivities,
 };
