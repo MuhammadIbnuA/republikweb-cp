@@ -146,7 +146,7 @@ const autoGenerateAttendanceRecords = async () => {
 
 // Schedule this function to run daily at a specific time
 const schedule = require('node-schedule');
-schedule.scheduleJob('27 06 * * *', autoGenerateAttendanceRecords); // Runs daily at midnight
+schedule.scheduleJob('29 06 * * *', autoGenerateAttendanceRecords); // Runs daily at midnight
 
 const checkIn = async (req, res) => {
   try {
