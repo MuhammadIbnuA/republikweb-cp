@@ -130,20 +130,30 @@ const getActivityLogsByDate = async (req, res) => {
       return res.status(400).json({ message: 'Invalid date format' });
     }
 
-    // Query all activity logs within the date range
-    const snapshot = await db.collectionGroup('activity_logs')
-      .where('date', '>=', start)
-      .where('date', '<=', end)
-      .get();
+    // Query all activity logs
+    const snapshot = await db.collectionGroup('activity_logs').get();
 
     if (snapshot.empty) {
-      return res.status(404).json({ message: 'No activity logs found on the specified date' });
+      return res.status(404).json({ message: 'No activity logs found' });
     }
 
     const logs = [];
     snapshot.forEach(doc => {
-      logs.push(doc.data());
+      const logData = doc.data();
+      const logDate = logData.date.toDate(); // Convert Firestore timestamp to JS Date object
+
+      // Filter logs within the date range
+      if (logDate >= start && logDate <= end) {
+        logs.push({
+          description: logData.description,
+          idkaryawan: doc.ref.parent.parent.id // Get the idkaryawan from the parent document
+        });
+      }
     });
+
+    if (logs.length === 0) {
+      return res.status(404).json({ message: 'No activity logs found on the specified date' });
+    }
 
     res.status(200).json(logs);
   } catch (error) {
