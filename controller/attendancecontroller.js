@@ -726,6 +726,50 @@ const getRecentActivities = async (req, res) => {
   }
 };
 
+// Function to get total number of employees and their attendance status for today
+const getDailyAttendanceStats = async (req, res) => {
+  try {
+    const today = moment().format('YYYY-MM-DD');
+    
+    // Fetch total number of employees
+    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
+    const totalEmployees = karyawanSnapshot.size;
+
+    // Fetch today's attendance records
+    const kehadiranSnapshot = await db.collection('kehadiran').where('date', '==', today).get();
+
+    // Initialize counts
+    let hadirCount = 0;
+    let izinCount = 0;
+    let tidakHadirCount = 0;
+
+    // Count the number of each status type
+    kehadiranSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.status === 'hadir') {
+        hadirCount++;
+      } else if (data.status === 'izin') {
+        izinCount++;
+      } else if (data.status === 'tidak hadir') {
+        tidakHadirCount++;
+      }
+    });
+
+    // Prepare the response
+    const response = {
+      totalEmployees,
+      hadirCount,
+      izinCount,
+      tidakHadirCount
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error fetching daily attendance stats:', error);
+    res.status(500).json({ message: 'Error fetching daily attendance stats', error: error.message });
+  }
+};
+
 module.exports = {
   checkIn,
   getAttendance,
@@ -742,4 +786,5 @@ module.exports = {
   getAllKehadiranOnDate,
   getAllKehadiranBetweenDates, // Add the new function to the module exports
   getRecentActivities,
+  getDailyAttendanceStats
 };
