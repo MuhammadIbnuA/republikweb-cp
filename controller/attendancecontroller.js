@@ -480,115 +480,66 @@ const getKehadiranLogByKaryawanId = async (req, res) => {
 
 const getKehadiranLogForAllKaryawan = async (req, res) => {
   try {
-    const { fullname } = req.query; // Get fullname from query parameter if present
+    const { fullname } = req.query; // Ambil fullname dari query parameter jika ada
 
     // First, get all karyawan documents excluding admins
-    let karyawanQuery = db.collection('karyawan').where('isAdmin', '==', false);
+    const karyawanSnapshot = await db.collection('karyawan').where('isAdmin', '==', false).get();
 
-    // Add fullname filter if provided
+    if (karyawanSnapshot.empty) {
+      return res.status(404).json({ message: 'No karyawan records found' });
+    }
+
+    // Extract karyawan IDs to filter kehadiran logs
+    let karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
+
+    // Filter karyawan by fullname if specified
     if (fullname) {
-      const karyawanSnapshot = await karyawanQuery.get();
-      if (karyawanSnapshot.empty) {
-        return res.status(404).json({ message: 'No karyawan records found' });
-      }
-
-      // Filter karyawan by fullname
-      const filteredKaryawanIds = karyawanSnapshot.docs
+      karyawanIds = karyawanSnapshot.docs
         .filter(doc => doc.data().fullname.toLowerCase().includes(fullname.toLowerCase()))
         .map(doc => doc.id);
-
-      if (filteredKaryawanIds.length === 0) {
-        return res.status(404).json({ message: 'No karyawan records match the given fullname' });
-      }
-
-      // Get kehadiran logs for the filtered karyawan IDs
-      const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', filteredKaryawanIds).get();
-
-      if (kehadiranSnapshot.empty) {
-        return res.status(404).json({ message: 'No kehadiran logs found for the given karyawan' });
-      }
-
-      // Group logs by karyawanId
-      const groupedLogs = kehadiranSnapshot.docs.reduce((acc, doc) => {
-        const log = doc.data();
-        const { karyawanId, fullname, NIP, status } = log;
-
-        if (!acc[karyawanId]) {
-          acc[karyawanId] = {
-            fullname,
-            NIP,
-            totalHadir: 0,
-            totalIzin: 0,
-            totalTidakHadir: 0
-          };
-        }
-
-        if (status === 'hadir') {
-          acc[karyawanId].totalHadir += 1;
-        } else if (status === 'izin') {
-          acc[karyawanId].totalIzin += 1;
-        } else if (status === 'tidak hadir') {
-          acc[karyawanId].totalTidakHadir += 1;
-        }
-
-        return acc;
-      }, {});
-
-      // Convert groupedLogs object to an array
-      const response = Object.values(groupedLogs);
-
-      return res.status(200).json(response);
-    } else {
-      // If no fullname query parameter is provided, include all records
-
-      // Get all karyawan documents excluding admins
-      const karyawanSnapshot = await karyawanQuery.get();
-
-      if (karyawanSnapshot.empty) {
-        return res.status(404).json({ message: 'No karyawan records found' });
-      }
-
-      // Extract karyawan IDs to filter kehadiran logs
-      const karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
-
-      // Get kehadiran logs for the filtered karyawan IDs
-      const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', karyawanIds).get();
-
-      if (kehadiranSnapshot.empty) {
-        return res.status(404).json({ message: 'No kehadiran logs found' });
-      }
-
-      // Group logs by karyawanId
-      const groupedLogs = kehadiranSnapshot.docs.reduce((acc, doc) => {
-        const log = doc.data();
-        const { karyawanId, fullname, NIP, status } = log;
-
-        if (!acc[karyawanId]) {
-          acc[karyawanId] = {
-            fullname,
-            NIP,
-            totalHadir: 0,
-            totalIzin: 0,
-            totalTidakHadir: 0
-          };
-        }
-
-        if (status === 'hadir') {
-          acc[karyawanId].totalHadir += 1;
-        } else if (status === 'izin') {
-          acc[karyawanId].totalIzin += 1;
-        } else if (status === 'tidak hadir') {
-          acc[karyawanId].totalTidakHadir += 1;
-        }
-
-        return acc;
-      }, {});
-
-      // Convert groupedLogs object to an array
-      const response = Object.values(groupedLogs);
-
-      return res.status(200).json(response);
     }
+
+    if (karyawanIds.length === 0) {
+      return res.status(404).json({ message: 'No karyawan records found matching the filter' });
+    }
+
+    // Get kehadiran logs for the filtered karyawan IDs
+    const kehadiranSnapshot = await db.collection('kehadiran').where('karyawanId', 'in', karyawanIds).get();
+
+    if (kehadiranSnapshot.empty) {
+      return res.status(404).json({ message: 'No kehadiran logs found' });
+    }
+
+    // Group logs by karyawanId
+    const groupedLogs = kehadiranSnapshot.docs.reduce((acc, doc) => {
+      const log = doc.data();
+      const { karyawanId, fullname, NIP, status } = log;
+
+      if (!acc[karyawanId]) {
+        acc[karyawanId] = {
+          fullname,
+          NIP,
+          totalHadir: 0,
+          totalIzin: 0,
+          totalTidakHadir: 0
+        };
+      }
+
+      if (status === 'hadir') {
+        acc[karyawanId].totalHadir += 1;
+      } else if (status === 'izin') {
+        acc[karyawanId].totalIzin += 1;
+      } else if (status === 'tidak hadir') {
+        acc[karyawanId].totalTidakHadir += 1;
+      }
+
+      return acc;
+    }, {});
+
+    // Convert groupedLogs object to an array
+    const response = Object.values(groupedLogs);
+
+    res.status(200).json(response);
   } catch (error) {
     console.error('Error retrieving kehadiran log for all karyawan:', error);
     res.status(500).json({ message: 'Error retrieving kehadiran log for all karyawan', error: error.message });
