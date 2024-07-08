@@ -486,28 +486,23 @@ const getKehadiranLogForAllKaryawan = async (req, res) => {
     const karyawanCollection = db.collection('karyawan');
     let karyawanSnapshot = await karyawanCollection.where('isAdmin', '==', false).get();
 
-    if (fullname) {
-      // Filter karyawan berdasarkan fullname jika ada parameter fullname
-      karyawanSnapshot = await karyawanCollection
-        .where('isAdmin', '==', false)
-        .get();
-      const filteredKaryawanDocs = karyawanSnapshot.docs.filter(doc =>
-        doc.data().fullname.toLowerCase().includes(fullname.toLowerCase())
-      );
-      
-      if (filteredKaryawanDocs.length === 0) {
-        return res.status(404).json({ message: 'No karyawan records found matching the filter' });
-      }
-
-      // Ambil ID karyawan yang telah difilter
-      karyawanSnapshot = { docs: filteredKaryawanDocs };
+    if (karyawanSnapshot.empty) {
+      return res.status(404).json({ message: 'No karyawan records found' });
     }
 
-    // Extract karyawan IDs untuk memfilter log kehadiran
-    const karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
+    let karyawanIds = karyawanSnapshot.docs.map(doc => doc.id);
+    let karyawanData = karyawanSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Filter karyawan berdasarkan fullname jika ada
+    if (fullname) {
+      karyawanData = karyawanData.filter(karyawan =>
+        karyawan.fullname.toLowerCase().includes(fullname.toLowerCase())
+      );
+      karyawanIds = karyawanData.map(karyawan => karyawan.id);
+    }
 
     if (karyawanIds.length === 0) {
-      return res.status(404).json({ message: 'No karyawan records found' });
+      return res.status(404).json({ message: 'No karyawan records found matching the filter' });
     }
 
     // Ambil log kehadiran untuk ID karyawan yang telah difilter
