@@ -5,8 +5,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path'); 
-const bwipjs = require('bwip-js');
-const QRCode = require('qrcode'); // Add this at the top of your file
+const QRCode = require('qrcode'); // Ensure QRCode is required at the top
 
 async function createKaryawan(req, res) {
   try {
@@ -50,12 +49,13 @@ async function createKaryawan(req, res) {
     const qrCodeFileName = `qrcode_${karyawanId}_${Date.now()}.png`;
     const qrCodeFileRef = bucket.file(qrCodeFileName);
 
+    let qrCodeUrl = ''; // Initialize QR code URL
+
     await new Promise((resolve, reject) => {
       qrCodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
         .on('error', reject)
         .on('finish', () => {
-          const qrCodeUrl = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
-          karyawanData.qr_code_url = qrCodeUrl;
+          qrCodeUrl = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
           resolve();
         })
         .end(qrCodeData);
@@ -92,25 +92,8 @@ async function createKaryawan(req, res) {
       tanggal_keluar: req.body.tanggal_keluar,
       OS: req.body.OS,
       Browser: req.body.Browser,
-      barcode_url: '' // Placeholder for the barcode image URL
+      qr_code_url: qrCodeUrl // Set the QR code URL here
     };
-
-    // Upload barcode image to Firebase Storage if provided
-    if (req.files && req.files['barcode']) {
-      const barcodeFile = req.files['barcode'][0];
-      const barcodeFileName = `barcode_${karyawanId}_${Date.now()}`;
-      const barcodeFileRef = bucket.file(barcodeFileName);
-
-      await new Promise((resolve, reject) => {
-        barcodeFileRef.createWriteStream({ metadata: { contentType: barcodeFile.mimetype } })
-          .on('error', reject)
-          .on('finish', () => {
-            karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${barcodeFileName}`;
-            resolve();
-          })
-          .end(barcodeFile.buffer);
-      });
-    }
 
     // Save the karyawan data (after all uploads are complete)
     await karyawanRef.set(karyawanData);
