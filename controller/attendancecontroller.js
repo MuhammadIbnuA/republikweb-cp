@@ -219,35 +219,25 @@ const checkIn = async (req, res) => {
   }
 };
 
-// Function to get total work hours by date
 const getTotalWorkHoursByDate = async (req, res) => {
   try {
-    const { date } = req.params; // Date in format YYYY-MM-DD
-    const { fullname } = req.query; // Fullname to filter by
-
-    // Get karyawan IDs if fullname is provided
-    let karyawanIds = [];
-    if (fullname) {
-      karyawanIds = await getKaryawanIdsByFullname(fullname, date);
-    }
+    const { date } = req.params;
+    const { karyawanIds } = req.query; // Ambil karyawanIds dari query params, jika ada
 
     // Fetch all attendance documents for the specified date
-    const snapshot = await db.collection('attendance')
-      .where('date', '==', date)
-      .get();
+    const snapshot = await db.collection('attendance').where('date', '==', date).get();
 
     if (snapshot.empty) {
       return res.status(404).json({ message: 'No attendance records found for the given date' });
     }
 
     const results = [];
-
     snapshot.forEach(doc => {
       const data = doc.data();
       const { karyawanId, checkInTimes } = data;
 
-      // Skip records if karyawanId is not in the filtered list
-      if (fullname && !karyawanIds.includes(karyawanId)) {
+      // Filter based on karyawanIds if provided
+      if (karyawanIds && !karyawanIds.includes(karyawanId)) {
         return;
       }
 
@@ -279,6 +269,7 @@ const getTotalWorkHoursByDate = async (req, res) => {
     res.status(500).json({ message: 'Error retrieving total work hours', error: error.message });
   }
 };
+
 
 const getAttendance = async (req, res) => {
   try {
