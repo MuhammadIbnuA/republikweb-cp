@@ -18,6 +18,8 @@ const {
   getAllReportDebtTimeOfKaryawan,
   getWorkTimeExcludingBreaksController,
   getAllWorkTimeByDateController,
+  getDebtTimeByFullNameAndDateController,
+  getWorkTimeByFullNameController,
   getWorkTimeHistoryByKaryawanIdController
 } = require('./controller/debttimecontroller');
 const {authenticateToken, IsAdmin} = require('./middleware/authmiddleware');
@@ -104,6 +106,9 @@ app.get('/worktimedate/:date', getAllWorkTimeByDateController); // New route
 app.get('/worktimehistory/:karyawanId', getWorkTimeHistoryByKaryawanIdController); // New route
 
 
+// name params api
+app.get('/debt-time/fullname/:fullName', getDebtTimeByFullNameAndDateController);
+app.get('/work-time/fullname/:fullName/date/:date', getWorkTimeByFullNameController);
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {

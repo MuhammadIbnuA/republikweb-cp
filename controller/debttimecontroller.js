@@ -189,11 +189,65 @@ const getWorkTimeHistoryByKaryawanId = async (karyawanId) => {
     return history;
 };
 
+const getKaryawanByFullName = async (fullName) => {
+    const snapshot = await db.collection('karyawan')
+        .where('fullname', '==', fullName)
+        .get();
+
+    if (snapshot.empty) {
+        throw new Error('Karyawan not found');
+    }
+
+    let karyawanId = null;
+    snapshot.forEach(doc => {
+        karyawanId = doc.id;
+    });
+
+    return karyawanId;
+};
+
+const getDebtTimeByFullNameAndDate = async (fullName, date) => {
+    const karyawanId = await getKaryawanByFullName(fullName);
+    const debtDetail = await getTimeDebtDetailByDate(karyawanId, date);
+    return debtDetail;
+};
+
+const getWorkTimeByFullName = async (fullName, date) => {
+    const karyawanId = await getKaryawanByFullName(fullName);
+    return await getWorkTimeExcludingBreaks(karyawanId, date);
+};
+
+const getDebtTimeByFullNameAndDateController = async (req, res) => {
+    try {
+        const { fullName, date } = req.params;
+        const debtTimeData = await getDebtTimeByFullNameAndDate(fullName, date);
+        res.status(200).json(debtTimeData);
+    } catch (error) {
+        console.error('Error getting debt time by full name and date:', error);
+        res.status(500).json({ message: 'Error getting debt time by full name and date', error: error.message });
+    }
+};
+
+
+const getWorkTimeByFullNameController = async (req, res) => {
+    try {
+        const { fullName, date } = req.params;
+        const workTimeData = await getWorkTimeByFullName(fullName, date);
+        res.status(200).json(workTimeData);
+    } catch (error) {
+        console.error('Error getting work time by full name:', error);
+        res.status(500).json({ message: 'Error getting work time by full name', error: error.message });
+    }
+};
+
+
 // Export module
 module.exports = {
     getSumDebtTimeByKaryawanId,
     getReportOfDebtTimeByDate,
     getDetailDebtTimeOnDate,
+    getDebtTimeByFullNameAndDateController,
+    getWorkTimeByFullNameController,
     getAllReportDebtTimeOfKaryawan,
     getWorkTimeExcludingBreaksController,
     getAllWorkTimeByDateController: async (req, res) => {
