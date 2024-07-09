@@ -5,6 +5,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path'); 
+const bwipjs = require('bwip-js');
 
 async function createKaryawan(req, res) {
   try {
@@ -77,22 +78,28 @@ async function createKaryawan(req, res) {
       barcode_url: '' // Placeholder for the barcode image URL
     };
 
-    // Upload barcode image to Firebase Storage if provided
-    if (req.files && req.files['barcode']) {
-      const barcodeFile = req.files['barcode'][0];
-      const barcodeFileName = `barcode_${karyawanId}_${Date.now()}`;
-      const barcodeFileRef = bucket.file(barcodeFileName);
+    // Generate barcode from NIP and upload to Firebase Storage
+    const barcodeBuffer = await bwipjs.toBuffer({
+      bcid: 'code128',       // Barcode type
+      text: req.body.NIP,    // Text to encode
+      scale: 3,              // 3x scaling factor
+      height: 10,            // Bar height, in millimeters
+      includetext: true,     // Show human-readable text
+      textxalign: 'center',  // Always good to set this
+    });
 
-      await new Promise((resolve, reject) => {
-        barcodeFileRef.createWriteStream({ metadata: { contentType: barcodeFile.mimetype } })
-          .on('error', reject)
-          .on('finish', () => {
-            karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${barcodeFileName}`;
-            resolve();
-          })
-          .end(barcodeFile.buffer);
-      });
-    }
+    const barcodeFileName = `barcode_${karyawanId}_${Date.now()}.png`;
+    const barcodeFileRef = bucket.file(barcodeFileName);
+
+    await new Promise((resolve, reject) => {
+      barcodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
+        .on('error', reject)
+        .on('finish', () => {
+          karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${barcodeFileName}`;
+          resolve();
+        })
+        .end(barcodeBuffer);
+    });
 
     // Save the karyawan data (after all uploads are complete)
     await karyawanRef.set(karyawanData);
