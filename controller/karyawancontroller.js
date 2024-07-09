@@ -75,39 +75,29 @@ async function createKaryawan(req, res) {
       tanggal_keluar: req.body.tanggal_keluar,
       OS: req.body.OS,
       Browser: req.body.Browser,
-      barcode_url: '' // Placeholder for the barcode image URL
+      barcode_url: '' // Placeholder for the QR code image URL
     };
 
-    // Generate barcode based on NIP
-    const barcodeBuffer = await new Promise((resolve, reject) => {
-      bwipjs.toBuffer({
-        bcid: 'code128',       // Barcode type
-        text: karyawanData.NIP, // Text to encode
-        scale: 3,              // 3x scaling factor
-        height: 10,            // Bar height, in millimeters
-        includetext: true,     // Show human-readable text
-        textxalign: 'center',  // Always good to set this
-      }, (err, png) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(png);
-        }
-      });
+    // Generate QR code based on NIP
+    const qrCodeBuffer = await QRCode.toBuffer(karyawanData.NIP, {
+      errorCorrectionLevel: 'H',
+      type: 'png',
+      margin: 1,
+      width: 300
     });
 
-    // Upload barcode image to Firebase Storage
-    const barcodeFileName = `barcode_${karyawanId}_${Date.now()}.png`;
-    const barcodeFileRef = bucket.file(barcodeFileName);
+    // Upload QR code image to Firebase Storage
+    const qrCodeFileName = `qrcode_${karyawanId}_${Date.now()}.png`;
+    const qrCodeFileRef = bucket.file(qrCodeFileName);
 
     await new Promise((resolve, reject) => {
-      barcodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
+      qrCodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
         .on('error', reject)
         .on('finish', () => {
-          karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${barcodeFileName}`;
+          karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
           resolve();
         })
-        .end(barcodeBuffer);
+        .end(qrCodeBuffer);
     });
 
     // Save the karyawan data (after all uploads are complete)
