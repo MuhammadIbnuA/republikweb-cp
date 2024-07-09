@@ -394,7 +394,7 @@ const addAttendanceIzin = async (req, res) => {
       return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
     }
 
-    // Data kehadiran yang akan disimpan
+    // Data kehadiran yang akan disimpan atau diupdate
     const attendanceData = {
       status: status === 'tidak hadir' ? 'izin' : status, // Ubah status 'tidak hadir' menjadi 'hadir'
       keterangan,
@@ -406,10 +406,10 @@ const addAttendanceIzin = async (req, res) => {
     const attendanceRef = db.collection('kehadiran').doc(`${karyawanId}-${formattedDate.format('YYYYMMDD')}`);
     await attendanceRef.set(attendanceData, { merge: true });
 
-    res.status(201).json({ message: 'Attendance data posted successfully', data: attendanceData });
+    res.status(201).json({ message: 'Attendance data updated successfully', data: attendanceData });
   } catch (error) {
-    console.error('Error posting attendance data:', error);
-    res.status(500).json({ message: 'Error posting attendance data', error: error.message });
+    console.error('Error updating attendance data:', error);
+    res.status(500).json({ message: 'Error updating attendance data', error: error.message });
   }
 };
 
