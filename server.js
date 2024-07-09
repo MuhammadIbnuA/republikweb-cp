@@ -56,6 +56,7 @@ app.get('/attendance/:karyawanId/:date', authenticateToken, attendanceController
 app.get('/report/karyawan/:karyawanId', authenticateToken, attendanceController.getKaryawanReport); // tested
 app.get('/attendance-today/:karyawanId', authenticateToken, attendanceController.getTodayAttendance) 
 app.get('/report/date/:date', authenticateToken, reportcontroller.getDayReport); // tested
+app.get('/attendancedate/date/:date', authenticateToken, attendanceController.getAttendanceByDate); // tested
 app.get('/shift-details', authenticateToken, attendanceController.getShiftDetails);
 app.put('/shift-details/:karyawanId', authenticateToken, attendanceController.updateShiftDetails);
 app.put('/shift-details/update/update-multiple', authenticateToken, attendanceController.updateMultipleShiftDetails);  
@@ -70,6 +71,7 @@ app.get('/kehadiran/:startDate/:endDate', authenticateToken, attendanceControlle
 app.get('/recent-activities', authenticateToken, attendanceController.getRecentActivities);
 app.get('/daily-attendance', authenticateToken, attendanceController.getDailyAttendanceStats);
 app.get('/total-work-hours/:date', authenticateToken, attendanceController.getTotalWorkHoursByDate);
+app.put('/add-permission/:karyawanId/:date', authenticateToken, attendanceController.addAttendanceIzin);
   
 // project 
 app.post('/projects',  IsAdmin,projectcontroller.addProject); // Only admin can add projects // tested

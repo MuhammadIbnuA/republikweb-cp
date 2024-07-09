@@ -350,6 +350,69 @@ const getTodayAttendance = async (req, res) => {
   }
 };
 
+const getAttendanceByDate = async (req, res) => {
+  try {
+    const { date } = req.params; // Date in format YYYY-MM-DD
+
+    // Fetch all attendance documents for the specified date
+    const snapshot = await db.collection('kehadiran').where('date', '==', date).get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No attendance records found for the given date' });
+    }
+
+    const results = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      results.push({
+        karyawanId: data.karyawanId,
+        status: data.status
+      });
+    });
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error retrieving attendance:', error);
+    res.status(500).json({ message: 'Error retrieving attendance', error: error.message });
+  }
+};
+
+const addAttendanceIzin = async (req, res) => {
+  try {
+    const { karyawanId, date } = req.params;
+    const { status, keterangan, gambarlink, gantiJam } = req.body;
+
+    // Validasi data yang diterima
+    if (!['izin', 'tidak hadir'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be "izin" or "tidak hadir"' });
+    }
+
+    // Pastikan tanggal memiliki format yang sesuai (misalnya YYYY-MM-DD)
+    const formattedDate = moment(date, 'YYYY-MM-DD', true); // Menggunakan moment.js untuk memvalidasi dan memformat tanggal
+    if (!formattedDate.isValid()) {
+      return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+
+    // Data kehadiran yang akan disimpan
+    const attendanceData = {
+      status: status === 'tidak hadir' ? 'izin' : status, // Ubah status 'tidak hadir' menjadi 'hadir'
+      keterangan,
+      gambarlink,
+      gantiJam
+    };
+
+    // Simpan atau update data kehadiran di Firebase kehadiran collection
+    const attendanceRef = db.collection('kehadiran').doc(`${karyawanId}-${formattedDate.format('YYYYMMDD')}`);
+    await attendanceRef.set(attendanceData, { merge: true });
+
+    res.status(201).json({ message: 'Attendance data posted successfully', data: attendanceData });
+  } catch (error) {
+    console.error('Error posting attendance data:', error);
+    res.status(500).json({ message: 'Error posting attendance data', error: error.message });
+  }
+};
+
 const getShiftDetails = async (req, res) => {
   try {
     const karyawanCollection = db.collection('karyawan');
@@ -852,6 +915,8 @@ module.exports = {
   getAttendance,
   getKaryawanReport,
   getTodayAttendance,
+  getAttendanceByDate,
+  addAttendanceIzin,
   getShiftDetails,
   updateShiftDetails,
   updateMultipleShiftDetails,
