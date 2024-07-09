@@ -66,7 +66,7 @@ app.get('/kehadiran/:karyawanId/:startDate/:endDate', authenticateToken, attenda
 app.get('/kehadiran/:karyawanId/:date', authenticateToken, attendanceController.getKehadiranOnDate);
 app.put('/kehadiran/change', authenticateToken, IsAdmin, attendanceController.changeKehadiranOnDate);
 // New routes
-app.get('/kehadiran/today', authenticateToken, attendanceController.getAllKehadiranOnDate);
+app.get('/kehadirantoday', authenticateToken, attendanceController.getAllKehadiranOnDate);
 app.get('/kehadiran/:startDate/:endDate', authenticateToken, attendanceController.getAllKehadiranBetweenDates);
 app.get('/recent-activities', authenticateToken, attendanceController.getRecentActivities);
 app.get('/daily-attendance', authenticateToken, attendanceController.getDailyAttendanceStats);
