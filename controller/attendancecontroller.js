@@ -396,7 +396,7 @@ const addAttendanceIzin = async (req, res) => {
 
     // Data kehadiran yang akan disimpan atau diupdate
     const attendanceData = {
-      status: status === 'tidak hadir' ? 'izin' : status, // Ubah status 'tidak hadir' menjadi 'hadir'
+      status, // Simpan status yang diterima tanpa perubahan
       keterangan,
       gambarlink,
       gantiJam
