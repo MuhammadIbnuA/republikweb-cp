@@ -147,6 +147,7 @@ const getActivityLogsByDate = async (req, res) => {
         logs.push({
           activitylogid: doc.id, // Include activitylogid
           description: logData.description,
+          status: logData.status, // Include status
           idkaryawan: doc.ref.parent.parent.id // Get the idkaryawan from the parent document
         });
       }
