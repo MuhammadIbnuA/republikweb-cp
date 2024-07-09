@@ -150,15 +150,15 @@ const getBarcodeUrlById = async (req, res) => {
     }
 
     const karyawanData = snapshot.data();
-    if (!karyawanData.barcode_url) {
-      return res.status(404).json({ message: 'Barcode URL not found for this karyawan' });
+    if (!karyawanData.qr_code_url) {
+      return res.status(404).json({ message: 'QR code URL not found for this karyawan' });
     }
 
-    // Return the barcode URL
-    res.status(200).json({ barcode_url: karyawanData.barcode_url });
+    // Return the QR code URL
+    res.status(200).json({ qr_code_url: karyawanData.qr_code_url });
   } catch (error) {
-    console.error('Error retrieving barcode URL:', error);
-    res.status(500).json({ message: 'Error retrieving barcode URL', error: error.message });
+    console.error('Error retrieving QR code URL:', error);
+    res.status(500).json({ message: 'Error retrieving QR code URL', error: error.message });
   }
 };
 
