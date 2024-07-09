@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path'); 
 const bwipjs = require('bwip-js');
+const QRCode = require('qrcode'); // Add this at the top of your file
 
 async function createKaryawan(req, res) {
   try {
@@ -45,20 +46,20 @@ async function createKaryawan(req, res) {
     }
 
     // Generate QR code for NIP
-    const nip = req.body.NIP;
+    const qrCodeData = await QRCode.toBuffer(req.body.NIP);
     const qrCodeFileName = `qrcode_${karyawanId}_${Date.now()}.png`;
-    const qrCodeFilePath = path.join(__dirname, qrCodeFileName);
-
-    await qrcode.toFile(qrCodeFilePath, nip);
-
-    // Upload QR code image to Firebase Storage
     const qrCodeFileRef = bucket.file(qrCodeFileName);
-    await bucket.upload(qrCodeFilePath, {
-      destination: qrCodeFileName,
-    });
 
-    // Get URL of the uploaded QR code
-    const qrCodeUrl = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
+    await new Promise((resolve, reject) => {
+      qrCodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
+        .on('error', reject)
+        .on('finish', () => {
+          const qrCodeUrl = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
+          karyawanData.qr_code_url = qrCodeUrl;
+          resolve();
+        })
+        .end(qrCodeData);
+    });
 
     // Default shift times
     const shiftDefaults = {
@@ -76,7 +77,7 @@ async function createKaryawan(req, res) {
       email: req.body.email,
       password: await bcrypt.hash(req.body.password, 10),
       profile_photo_url: profilePhotoUrl,
-      NIP: nip,
+      NIP: req.body.NIP,
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
@@ -91,7 +92,7 @@ async function createKaryawan(req, res) {
       tanggal_keluar: req.body.tanggal_keluar,
       OS: req.body.OS,
       Browser: req.body.Browser,
-      barcode_url: qrCodeUrl // Set QR code URL here
+      barcode_url: '' // Placeholder for the barcode image URL
     };
 
     // Upload barcode image to Firebase Storage if provided
@@ -114,9 +115,6 @@ async function createKaryawan(req, res) {
     // Save the karyawan data (after all uploads are complete)
     await karyawanRef.set(karyawanData);
     res.status(201).json(karyawanData);
-
-    // Clean up the local QR code file
-    fs.unlinkSync(qrCodeFilePath);
 
   } catch (error) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
