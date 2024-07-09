@@ -44,7 +44,7 @@ app.get('/karyawan', karyawanController.getAllKaryawan); // tested
 app.get('/karyawan/:id', karyawanController.getKaryawanById); // tested
 app.get('/karyawan/division/:division', karyawanController.getKaryawanByDivision); // tested
 app.put('/karyawan/:id', authenticateToken, IsAdmin, karyawanController.updateKaryawan); // Only admins can update
-app.get('/karyawan/:id/barcode', authenticateToken, karyawanController.getBarcodeUrlById);
+app.get('/karyawan/:id/barcode', karyawanController.getBarcodeUrlById);
 app.post('/karyawan/request-password-reset', karyawanController.requestPasswordReset); // tested deploy
 app.post('/karyawan/validasi-otp', karyawanController.validateOtp);
 app.post('/karyawan/reset-password', karyawanController.resetPassword); // tested deploy
