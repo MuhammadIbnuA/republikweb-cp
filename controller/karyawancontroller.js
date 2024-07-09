@@ -78,16 +78,25 @@ async function createKaryawan(req, res) {
       barcode_url: '' // Placeholder for the barcode image URL
     };
 
-    // Generate barcode from NIP and upload to Firebase Storage
-    const barcodeBuffer = await bwipjs.toBuffer({
-      bcid: 'code128',       // Barcode type
-      text: req.body.NIP,    // Text to encode
-      scale: 3,              // 3x scaling factor
-      height: 10,            // Bar height, in millimeters
-      includetext: true,     // Show human-readable text
-      textxalign: 'center',  // Always good to set this
+    // Generate barcode based on NIP
+    const barcodeBuffer = await new Promise((resolve, reject) => {
+      bwipjs.toBuffer({
+        bcid: 'code128',       // Barcode type
+        text: karyawanData.NIP, // Text to encode
+        scale: 3,              // 3x scaling factor
+        height: 10,            // Bar height, in millimeters
+        includetext: true,     // Show human-readable text
+        textxalign: 'center',  // Always good to set this
+      }, (err, png) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(png);
+        }
+      });
     });
 
+    // Upload barcode image to Firebase Storage
     const barcodeFileName = `barcode_${karyawanId}_${Date.now()}.png`;
     const barcodeFileRef = bucket.file(barcodeFileName);
 
