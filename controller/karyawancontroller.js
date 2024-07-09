@@ -50,12 +50,14 @@ async function createKaryawan(req, res) {
     const qrCodeFileRef = bucket.file(qrCodeFileName);
 
     let qrCodeUrl = ''; // Initialize QR code URL
+    let qrCodeFile = ''; // Initialize QR code filename
 
     await new Promise((resolve, reject) => {
       qrCodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
         .on('error', reject)
         .on('finish', () => {
           qrCodeUrl = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
+          qrCodeFile = qrCodeFileName;
           resolve();
         })
         .end(qrCodeData);
@@ -92,7 +94,8 @@ async function createKaryawan(req, res) {
       tanggal_keluar: req.body.tanggal_keluar,
       OS: req.body.OS,
       Browser: req.body.Browser,
-      qr_code_url: qrCodeUrl // Set the QR code URL here
+      qr_code_url: qrCodeUrl, // Set the QR code URL here
+      gambar_qr: qrCodeFile // Set the QR code filename here
     };
 
     // Save the karyawan data (after all uploads are complete)
@@ -103,6 +106,8 @@ async function createKaryawan(req, res) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
   }
 }
+
+
 
 // Update Karyawan details
 const updateKaryawan = async (req, res) => {
@@ -150,17 +155,18 @@ const getBarcodeUrlById = async (req, res) => {
     }
 
     const karyawanData = snapshot.data();
-    if (!karyawanData.qr_code_url) {
-      return res.status(404).json({ message: 'QR code URL not found for this karyawan' });
+    if (!karyawanData.gambar_qr) {
+      return res.status(404).json({ message: 'QR code image not found for this karyawan' });
     }
 
-    // Return the QR code URL
-    res.status(200).json({ qr_code_url: karyawanData.qr_code_url });
+    // Return the QR code image
+    res.status(200).json({ gambar_qr: karyawanData.gambar_qr });
   } catch (error) {
-    console.error('Error retrieving QR code URL:', error);
-    res.status(500).json({ message: 'Error retrieving QR code URL', error: error.message });
+    console.error('Error retrieving QR code image:', error);
+    res.status(500).json({ message: 'Error retrieving QR code image', error: error.message });
   }
 };
+
 
 const login = async (req, res) => {
   try {
