@@ -44,6 +44,22 @@ async function createKaryawan(req, res) {
       });
     }
 
+    // Generate QR code for NIP
+    const nip = req.body.NIP;
+    const qrCodeFileName = `qrcode_${karyawanId}_${Date.now()}.png`;
+    const qrCodeFilePath = path.join(__dirname, qrCodeFileName);
+
+    await qrcode.toFile(qrCodeFilePath, nip);
+
+    // Upload QR code image to Firebase Storage
+    const qrCodeFileRef = bucket.file(qrCodeFileName);
+    await bucket.upload(qrCodeFilePath, {
+      destination: qrCodeFileName,
+    });
+
+    // Get URL of the uploaded QR code
+    const qrCodeUrl = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
+
     // Default shift times
     const shiftDefaults = {
       pagi: { jam_masuk: '09:00', jam_pulang: '17:00' },
@@ -60,7 +76,7 @@ async function createKaryawan(req, res) {
       email: req.body.email,
       password: await bcrypt.hash(req.body.password, 10),
       profile_photo_url: profilePhotoUrl,
-      NIP: req.body.NIP,
+      NIP: nip,
       resetpasswordtoken: '',
       phoneNumber: req.body.phoneNumber,
       division: req.body.division,
@@ -75,34 +91,32 @@ async function createKaryawan(req, res) {
       tanggal_keluar: req.body.tanggal_keluar,
       OS: req.body.OS,
       Browser: req.body.Browser,
-      barcode_url: '' // Placeholder for the QR code image URL
+      barcode_url: qrCodeUrl // Set QR code URL here
     };
 
-    // Generate QR code based on NIP
-    const qrCodeBuffer = await QRCode.toBuffer(karyawanData.NIP, {
-      errorCorrectionLevel: 'H',
-      type: 'png',
-      margin: 1,
-      width: 300
-    });
+    // Upload barcode image to Firebase Storage if provided
+    if (req.files && req.files['barcode']) {
+      const barcodeFile = req.files['barcode'][0];
+      const barcodeFileName = `barcode_${karyawanId}_${Date.now()}`;
+      const barcodeFileRef = bucket.file(barcodeFileName);
 
-    // Upload QR code image to Firebase Storage
-    const qrCodeFileName = `qrcode_${karyawanId}_${Date.now()}.png`;
-    const qrCodeFileRef = bucket.file(qrCodeFileName);
-
-    await new Promise((resolve, reject) => {
-      qrCodeFileRef.createWriteStream({ metadata: { contentType: 'image/png' } })
-        .on('error', reject)
-        .on('finish', () => {
-          karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${qrCodeFileName}`;
-          resolve();
-        })
-        .end(qrCodeBuffer);
-    });
+      await new Promise((resolve, reject) => {
+        barcodeFileRef.createWriteStream({ metadata: { contentType: barcodeFile.mimetype } })
+          .on('error', reject)
+          .on('finish', () => {
+            karyawanData.barcode_url = `https://storage.googleapis.com/${bucket.name}/${barcodeFileName}`;
+            resolve();
+          })
+          .end(barcodeFile.buffer);
+      });
+    }
 
     // Save the karyawan data (after all uploads are complete)
     await karyawanRef.set(karyawanData);
     res.status(201).json(karyawanData);
+
+    // Clean up the local QR code file
+    fs.unlinkSync(qrCodeFilePath);
 
   } catch (error) {
     res.status(500).json({ message: 'Error creating karyawan', error: error.message });
