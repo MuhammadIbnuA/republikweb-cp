@@ -145,6 +145,7 @@ const getActivityLogsByDate = async (req, res) => {
       // Filter logs within the date range
       if (logDate >= start && logDate <= end) {
         logs.push({
+          activitylogid: doc.id, // Include activitylogid
           description: logData.description,
           idkaryawan: doc.ref.parent.parent.id // Get the idkaryawan from the parent document
         });
