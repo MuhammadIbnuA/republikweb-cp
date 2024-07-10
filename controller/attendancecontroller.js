@@ -12,6 +12,11 @@ const generateAttendanceData = async () => {
       const karyawanData = karyawanDoc.data();
       const karyawanId = karyawanDoc.id;
 
+      // Skip generating data for admins
+      if (karyawanData.isAdmin) {
+        return;
+      }
+
       const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
       const attendanceDoc = await attendanceRef.get();
 
