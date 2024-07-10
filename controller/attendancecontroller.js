@@ -114,6 +114,17 @@ const checkIn = async (req, res) => {
       }
       attendanceData.checkInTimes.start = now.format();
       attendanceData.timeDebt += timeDebt;
+
+      // Update kehadiran status to 'hadir'
+      const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
+      await kehadiranRef.set({
+        karyawanId: karyawanId,
+        date: now.format('YYYY-MM-DD'),
+        status: 'hadir',
+        fullname: karyawanData.fullname,
+        NIP: karyawanData.NIP
+      }, { merge: true });
+
     } else if (type === 'resume') {
       if (!attendanceData.checkInTimes.start) {
         return res.status(400).json({ message: 'No start recorded' });
@@ -152,21 +163,6 @@ const checkIn = async (req, res) => {
     }
 
     await attendanceRef.update(attendanceData);
-
-    // Update kehadiran status automatically
-    const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
-    let status = 'tidak hadir';
-    if (type === 'start') {
-      status = 'hadir';
-    }
-
-    await kehadiranRef.set({
-      karyawanId: karyawanId,
-      date: now.format('YYYY-MM-DD'),
-      status: status,
-      fullname: karyawanData.fullname,
-      NIP: karyawanData.NIP
-    }, { merge: true });
 
     res.status(200).json(attendanceData);
   } catch (error) {
