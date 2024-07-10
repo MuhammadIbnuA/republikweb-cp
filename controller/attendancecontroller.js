@@ -1,5 +1,55 @@
 const { db } = require('../firebase');
 const moment = require('moment');
+const cron = require('node-cron');
+
+// Fungsi untuk menghasilkan data kehadiran otomatis
+const generateAttendanceData = async () => {
+  try {
+    const now = moment();
+    const karyawanSnapshot = await db.collection('karyawan').get();
+
+    karyawanSnapshot.forEach(async (karyawanDoc) => {
+      const karyawanData = karyawanDoc.data();
+      const karyawanId = karyawanDoc.id;
+
+      const attendanceRef = db.collection('attendance').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
+      const attendanceDoc = await attendanceRef.get();
+
+      if (!attendanceDoc.exists) {
+        await attendanceRef.set({
+          karyawanId: karyawanId,
+          date: now.format('YYYY-MM-DD'),
+          checkInTimes: {
+            start: null,
+            resume: null,
+            end: null,
+            break: null
+          },
+          timeDebt: 0,
+          fullname: karyawanData.fullname
+        });
+
+        const kehadiranRef = db.collection('kehadiran').doc(`${karyawanId}-${now.format('YYYYMMDD')}`);
+        await kehadiranRef.set({
+          karyawanId: karyawanId,
+          date: now.format('YYYY-MM-DD'),
+          status: 'tidak hadir',
+          fullname: karyawanData.fullname,
+          NIP: karyawanData.NIP
+        });
+      }
+    });
+
+    console.log('Data kehadiran telah di-generate otomatis.');
+  } catch (error) {
+    console.error('Error generating attendance data:', error);
+  }
+};
+
+// Menjadwalkan tugas untuk berjalan setiap menit
+cron.schedule('0 0 * * *', () => {
+  generateAttendanceData();
+});
 
 const checkIn = async (req, res) => {
   try {
