@@ -51,8 +51,7 @@ const generateAttendanceData = async () => {
   }
 };
 
-// Menjadwalkan tugas untuk berjalan setiap menit
-cron.schedule('0 0 * * *', () => {
+cron.schedule('1 0 * * *', () => {
   generateAttendanceData();
 });
 
