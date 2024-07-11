@@ -2,6 +2,7 @@ const { db } = require('../firebase');
 const moment = require('moment');
 const cron = require('node-cron');
 
+// Fungsi untuk menghasilkan data kehadiran otomatis
 const generateAttendanceData = async () => {
   try {
     const now = moment();
@@ -11,6 +12,7 @@ const generateAttendanceData = async () => {
       const karyawanData = karyawanDoc.data();
       const karyawanId = karyawanDoc.id;
 
+      // Skip generating data for admins
       if (karyawanData.isAdmin) {
         return;
       }
@@ -49,10 +51,9 @@ const generateAttendanceData = async () => {
   }
 };
 
-module.exports = async (req, res) => {
-  await generateAttendanceData();
-  res.status(200).send('Data kehadiran telah di-generate otomatis.');
-};
+cron.schedule('0 0 * * *', () => {
+  generateAttendanceData();
+});
 
 const checkIn = async (req, res) => {
   try {
@@ -896,7 +897,6 @@ const getDailyAttendanceStats = async (req, res) => {
 };
 
 module.exports = {
-  generateAttendanceData,
   checkIn,
   getTotalWorkHoursByDate,
   getAttendance,
