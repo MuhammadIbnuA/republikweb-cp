@@ -51,7 +51,7 @@ const generateAttendanceData = async () => {
   }
 };
 
-cron.schedule('04 12 * * *', () => {
+cron.schedule('4 12 * * *', () => {
   generateAttendanceData();
 });
 
